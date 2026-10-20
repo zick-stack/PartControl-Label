@@ -6,9 +6,10 @@
 <title>Part Controller - Print Label</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <style id="pageStyle"></style>
 <style>
-:root{--ink:#211b35;--muted:#6f6882;--purple:#6d4aff;--line:#e7e2f0;--bg:#f7f5fb;--white:#fff;
+:root{--qr:17mm;--ink:#211b35;--muted:#6f6882;--purple:#6d4aff;--line:#e7e2f0;--bg:#f7f5fb;--white:#fff;
  --lw:63mm;--lh:38mm;--sw:63mm;--sh:38mm;--gap:1.5mm;--f-brand:5.5pt;--f-name:10pt;--f-row:7.5pt;--pad:2mm}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -65,6 +66,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .label .info{display:grid;grid-template-columns:max-content 1fr;column-gap:1.5mm;font-size:var(--f-row);line-height:1.3;flex:none}
 .label .key{color:#555;white-space:nowrap}.label .val{font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .label .serial{border-top:.2mm solid #bbb;margin-top:1mm;padding-top:.8mm;font-size:var(--f-name);line-height:1.15;font-weight:800;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label .top{display:flex;gap:1.5mm;flex:none}.label .txt{flex:1;min-width:0}
+.label .qrbox{width:var(--qr);height:var(--qr);flex:none}.label .qrbox svg{width:100%;height:100%;display:block}
 .label .barcodebox{flex:1;min-height:3mm;margin-top:.6mm;display:flex}
 .label .barcodebox svg{width:100%;height:100%;display:block}
 .label .nobar{font-size:6pt;color:#777;margin:auto;text-align:center}
@@ -310,6 +313,7 @@ function applySettings(){
  root.setProperty('--f-name',Math.max(10*u,8).toFixed(2)+'pt');
  root.setProperty('--f-row',Math.max(7.5*u,6).toFixed(2)+'pt');
  root.setProperty('--pad',Math.max(2*u,1.4).toFixed(2)+'mm');
+ root.setProperty('--qr',qrSize(w,h,Math.max(2*u,1.4)).toFixed(2)+'mm');
  // page rule: real @page, injected so it follows the settings
  $('pageStyle').textContent=mode==='roll'
   ?`@page{size:${rotate?h:w}mm ${rotate?w:h}mm;margin:0}`
@@ -327,8 +331,9 @@ function applySettings(){
 
 /* ---------- shared preview ---------- */
 function labelHtml(r,i){
- return `<div class="slot"><article class="label"><div class="brand">Part Name</div><div class="partname">${esc(r.partName||'—')}</div>`+
- `<div class="info"><span class="key">Part number:</span><span class="val">${esc(r.partNumber||'—')}</span><span class="key">Category:</span><span class="val">${esc(r.category||'—')}</span></div>`+
+ return `<div class="slot"><article class="label"><div class="top"><div class="txt"><div class="brand">Part Name</div><div class="partname">${esc(r.partName||'—')}</div>`+
+ `<div class="info"><span class="key">Part number:</span><span class="val">${esc(r.partNumber||'—')}</span><span class="key">Category:</span><span class="val">${esc(r.category||'—')}</span></div></div>`+
+ `${r.serialNumber?`<div class="qrbox" data-i="${i}"></div>`:''}</div>`+
  `<div class="serial">Serial number: ${esc(r.serialNumber||'—')}</div><div class="barcodebox" data-i="${i}"></div></article></div>`;
 }
 function drawBarcode(box,value){
@@ -343,6 +348,13 @@ function drawBarcode(box,value){
   svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('role','img');svg.setAttribute('aria-label','Barcode for serial number '+value);
   box.appendChild(svg);
  }catch(e){box.innerHTML='<div class="nobar" style="color:#b42318">Barcode unavailable for this value</div>'}
+}
+function drawQr(box,value){ // QR code in the top-right corner
+ try{
+  const q=qrOf(value),n=q.getModuleCount();let d='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;
+  box.innerHTML=`<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" role="img" aria-label="QR code for serial number ${esc(value)}"><path d="${d}" fill="#000"/></svg>`;
+ }catch(e){box.remove()}
 }
 function render(){
  const s=applySettings();
@@ -365,6 +377,7 @@ function render(){
  }else $('pageStat').textContent='n/a';
  pv.innerHTML='<div class="labelgrid">'+all.map(labelHtml).join('')+'</div>';
  pv.querySelectorAll('.barcodebox').forEach(b=>drawBarcode(b,all[Number(b.dataset.i)].serialNumber));
+ pv.querySelectorAll('.qrbox').forEach(b=>drawQr(b,all[Number(b.dataset.i)].serialNumber));
 }
 ['size','cw','ch','orient','mode','margin','gap','border'].forEach(id=>$(id).addEventListener('input',render));
 
@@ -384,7 +397,8 @@ function loadLib(k){
 }
 function setExp(t,k=''){$('exportStatus').textContent=t;$('exportStatus').className='status exportnote no-print '+k}
 function expand(){const items=[...bulkItems,...manualItems],all=[];items.forEach(r=>{for(let i=0;i<r.copies;i++)all.push(r)});return{items,all}}
-function metrics(s){const u=Math.max(Math.min(s.h/38,s.w/63),.6);return{u,pad:Math.max(2*u,1.4),brand:Math.max(7*u,5.5),name:Math.max(10*u,8),row:Math.max(7.5*u,6),compact:s.h<32}}
+const qrSize=(w,h,pad)=>Math.min((w-2*pad)*.34,h*.45); // QR side in mm, top-right corner
+function metrics(s){const u=Math.max(Math.min(s.h/38,s.w/63),.6),pad=Math.max(2*u,1.4);return{u,pad,qr:qrSize(s.w,s.h,pad),brand:Math.max(7*u,5.5),name:Math.max(10*u,8),row:Math.max(7.5*u,6),compact:s.h<32}}
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
 function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
 const L1=t=>String(t??'').replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/\u2026/g,'...').replace(/[^\x00-\xFF]/g,'?'); // PDF standard fonts only cover Latin-1
@@ -397,6 +411,22 @@ const tooBig='This label size does not fit the A4 page with the current margin. 
 const noteRot='Portrait roll: PDF turns the label 90°; Word keeps it upright on a landscape page.';
 
 /* ---- barcode helpers ---- */
+const qrCache={};
+function qrOf(v){ // QR code (UTF-8, medium error correction) for the serial number
+ if(qrCache[v])return qrCache[v];
+ if(typeof qrcode==='undefined')throw new Error('lib');
+ qrcode.stringToBytes=qrcode.stringToBytesFuncs['UTF-8'];
+ const q=qrcode(0,'M');q.addData(String(v));q.make();return qrCache[v]=q;
+}
+const qrPngCache={};
+function qrPng(v){
+ if(qrPngCache[v])return qrPngCache[v];
+ const q=qrOf(v),n=q.getModuleCount(),k=8,c=document.createElement('canvas');c.width=c.height=n*k;
+ const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,n*k,n*k);g.fillStyle='#000';
+ for(let r=0;r<n;r++)for(let cc=0;cc<n;cc++)if(q.isDark(r,cc))g.fillRect(cc*k,r*k,k,k);
+ const b=atob(c.toDataURL('image/png').split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+ return qrPngCache[v]=u;
+}
 function barBits(v){const o={};JsBarcode(o,v,{format:'CODE128'});return o.encodings.map(e=>e.data).join('')}
 const pngCache={};
 function barPng(v){
@@ -412,13 +442,19 @@ function pdfLabel(doc,x0,y0,r,s,m,rot){
  const T=(t,lx,ly)=>{const px=rot?x0+H-ly:x0+lx,py=rot?y0+lx:y0+ly;rot?doc.text(t,px,py,{angle:-90}):doc.text(t,px,py)};
  const R=(lx,ly,w,h,st)=>rot?doc.rect(x0+H-ly-h,y0+lx,h,w,st):doc.rect(x0+lx,y0+ly,w,h,st);
  const fit=(t,max)=>{t=L1(t);if(doc.getTextWidth(t)<=max)return t;while(t.length>1&&doc.getTextWidth(t+'...')>max)t=t.slice(0,-1);return t+'...'};
- let y=m.pad;
+ let y=m.pad,qs=0;const code=r.serialNumber;
+ if(code)try{ // QR code, top-right corner
+  const q=qrOf(code),n=q.getModuleCount(),md=m.qr/n,qx=m.pad+iw-m.qr;doc.setFillColor(0);
+  for(let rr=0;rr<n;rr++)for(let c=0;c<n;){if(q.isDark(rr,c)){let j=c;while(j<n&&q.isDark(rr,j))j++;R(qx+c*md,y+rr*md,(j-c)*md,md,'F');c=j}else c++}
+  qs=m.qr;
+ }catch(e){}
+ const tw=qs?iw-qs-1.5:iw; // text width beside the QR code
  doc.setFont('helvetica','bold');
  if(!m.compact){const sz=m.brand*MM;doc.setFontSize(m.brand);doc.setTextColor(113,102,141);T('PART NAME',m.pad,y+sz*.8);y+=sz*1.15+.8}
  { // part name, max 2 lines (1 when compact)
   const sz=m.name*MM,max=m.compact?1:2;doc.setFontSize(m.name);doc.setTextColor(0);
-  let lines=doc.splitTextToSize(L1(r.partName||'—'),iw);
-  if(lines.length>max){lines=lines.slice(0,max);lines[max-1]=fit(lines[max-1]+'...',iw)}
+  let lines=doc.splitTextToSize(L1(r.partName||'—'),tw);
+  if(lines.length>max){lines=lines.slice(0,max);lines[max-1]=fit(lines[max-1]+'...',tw)}
   lines.forEach((ln,i)=>T(ln,m.pad,y+sz*.85+i*sz*1.15));y+=lines.length*sz*1.15+1;
  }
  { // info rows
@@ -426,12 +462,12 @@ function pdfLabel(doc,x0,y0,r,s,m,rot){
   const keyW=Math.max(doc.getTextWidth('Part number:'),doc.getTextWidth('Category:'))+1.5;
   [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
    doc.setFont('helvetica','normal');doc.setTextColor(85);T(k,m.pad,y+sz*.9);
-   doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit(v||'—',iw-keyW),m.pad+keyW,y+sz*.9);y+=sz*1.3;
+   doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit(v||'—',tw-keyW),m.pad+keyW,y+sz*.9);y+=sz*1.3;
   });
-  y+=1;doc.setFillColor(187);R(m.pad,y,iw,.2,'F');y+=1;
+  y=Math.max(y,m.pad+qs)+1;doc.setFillColor(187);R(m.pad,y,iw,.2,'F');y+=1;
   const ss=m.name*MM;doc.setFontSize(m.name);doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit('Serial number: '+(r.serialNumber||'—'),iw),m.pad,y+ss*.85);y+=ss*1.15+.6;
  }
- const bh=Math.max(2,H-m.pad-y),code=r.serialNumber;
+ const bh=Math.max(2,H-m.pad-y);
  if(code){
   try{const bits=barBits(code),mw=iw/bits.length;doc.setFillColor(0);
    for(let i=0;i<bits.length;){if(bits[i]==='1'){let j=i;while(j<bits.length&&bits[j]==='1')j++;R(m.pad+i*mw,y,(j-i)*mw,bh,'F');i=j}else i++}
@@ -473,19 +509,29 @@ const mctx=document.createElement('canvas').getContext('2d');
 function tw(t,pt,bold){mctx.font=`${bold?'bold ':''}${pt}pt Arial`;return mctx.measureText(t).width/3.7795}
 function fitW(t,pt,bold,max){t=String(t??'');if(tw(t,pt,bold)<=max)return t;while(t.length>1&&tw(t+'...',pt,bold)>max)t=t.slice(0,-1);return t+'...'}
 function wordLabel(D,r,s,m){
- const iw=s.w-2*m.pad,out=[];let used=0;
+ const iw=s.w-2*m.pad,out=[],top=[];let used=0,qr=null;
+ if(r.serialNumber)try{qr=qrPng(r.serialNumber)}catch(e){}
+ const qs=qr?m.qr:0,txw=qr?iw-qs-1.5:iw; // text width beside the QR code
  const sp=(line,before=0,after=0)=>({line:TW(line),lineRule:D.LineRuleType.EXACT,before:TW(before),after:TW(after)});
  const run=(text,pt,o={})=>new D.TextRun({text,font:'Arial',size:Math.round(pt*2),...o});
- if(!m.compact){const lh=m.brand*MM*1.25;out.push(new D.Paragraph({spacing:sp(lh,0,.8),children:[run('PART NAME',m.brand,{bold:true,color:'71668D'})]}));used+=lh+.8}
+ if(!m.compact){const lh=m.brand*MM*1.25;top.push(new D.Paragraph({spacing:sp(lh,0,.8),children:[run('PART NAME',m.brand,{bold:true,color:'71668D'})]}));used+=lh+.8}
  { const lh=m.name*MM*1.25,txt=String(r.partName||'—'),maxLines=m.compact?1:2;
-  const t=maxLines===1?fitW(txt,m.name,true,iw):fitW(txt,m.name,true,iw*1.8);
-  const n=Math.min(maxLines,tw(t,m.name,true)>iw*.98?2:1);
-  out.push(new D.Paragraph({spacing:sp(lh,0,1),children:[run(t,m.name,{bold:true})]}));used+=n*lh+1;
+  const t=maxLines===1?fitW(txt,m.name,true,txw):fitW(txt,m.name,true,txw*1.8);
+  const n=Math.min(maxLines,tw(t,m.name,true)>txw*.98?2:1);
+  top.push(new D.Paragraph({spacing:sp(lh,0,1),children:[run(t,m.name,{bold:true})]}));used+=n*lh+1;
  }
  { const lh=m.row*MM*1.4,keyW=Math.max(tw('Part number:',m.row),tw('Category:',m.row))+1.5;
   [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
-   out.push(new D.Paragraph({spacing:sp(lh),tabStops:[{type:D.TabStopType.LEFT,position:TW(keyW)}],
-    children:[run(k,m.row,{color:'555555'}),new D.TextRun({children:[new D.Tab(),fitW(v||'—',m.row,true,iw-keyW)],font:'Arial',size:Math.round(m.row*2),bold:true})]}));used+=lh});
+   top.push(new D.Paragraph({spacing:sp(lh),tabStops:[{type:D.TabStopType.LEFT,position:TW(keyW)}],
+    children:[run(k,m.row,{color:'555555'}),new D.TextRun({children:[new D.Tab(),fitW(v||'—',m.row,true,txw-keyW)],font:'Arial',size:Math.round(m.row*2),bold:true})]}));used+=lh});
+  if(qr){ // text on the left, QR code in the top-right corner
+   const none={style:D.BorderStyle.NONE,size:0,color:'FFFFFF'},nb={top:none,bottom:none,left:none,right:none},z={top:0,bottom:0,left:0,right:0};
+   out.push(new D.Table({width:{size:TW(iw),type:D.WidthType.DXA},columnWidths:[TW(iw-qs),TW(qs)],layout:D.TableLayoutType.FIXED,
+    borders:{...nb,insideHorizontal:none,insideVertical:none},rows:[new D.TableRow({height:{value:TW(qs),rule:D.HeightRule.ATLEAST},children:[
+     new D.TableCell({width:{size:TW(iw-qs),type:D.WidthType.DXA},borders:nb,margins:z,children:top}),
+     new D.TableCell({width:{size:TW(qs),type:D.WidthType.DXA},borders:nb,margins:z,children:[new D.Paragraph({spacing:{before:0,after:0},children:[new D.ImageRun({data:qr,transformation:{width:PX(qs),height:PX(qs)}})]})]})]})]}));
+   used=Math.max(used,qs);
+  }else out.push(...top);
   const sl=m.name*MM*1.25;out.push(new D.Paragraph({spacing:sp(sl,1,0),border:{top:{style:D.BorderStyle.SINGLE,size:4,color:'BBBBBB',space:1}},
    children:[run(fitW('Serial number: '+(r.serialNumber||'—'),m.name,true,iw),m.name,{bold:true})]}));used+=sl+1+.7;
  }
