@@ -322,7 +322,7 @@ function applySettings(){
 
 /* ---------- shared preview ---------- */
 function labelHtml(r,i){
- return `<div class="slot"><article class="label"><div class="brand">Part identification</div><div class="partname">${esc(r.partName||'—')}</div>`+
+ return `<div class="slot"><article class="label"><div class="brand">Part Name</div><div class="partname">${esc(r.partName||'—')}</div>`+
  `<div class="info"><span class="key">Part number:</span><span class="val">${esc(r.partNumber||'—')}</span><span class="key">Category:</span><span class="val">${esc(r.category||'—')}</span></div>`+
  `<div class="serial">Serial number: ${esc(r.serialNumber||'—')}</div><div class="barcodebox" data-i="${i}"></div></article></div>`;
 }
