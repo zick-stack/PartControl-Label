@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part Controller - Print Label</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style id="pageStyle"></style>
+<style>
+:root{--ink:#211b35;--muted:#6f6882;--purple:#6d4aff;--line:#e7e2f0;--bg:#f7f5fb;--white:#fff;
+ --lw:63mm;--lh:38mm;--sw:63mm;--sh:38mm;--gap:1.5mm;--f-brand:5.5pt;--f-name:10pt;--f-row:7.5pt;--pad:2mm}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:linear-gradient(115deg,#251b45,#6345c7);color:#fff;padding:28px max(22px,calc((100% - 1180px)/2))}
+header .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.78;font-weight:700}
+header h1{margin:5px 0;font-size:30px}header p{margin:0;opacity:.82}
+main{max-width:1180px;margin:24px auto;padding:0 18px 40px;display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
+.sidebar{display:flex;flex-direction:column;gap:16px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 5px 20px #33215b08}
+h2{font-size:17px;margin:0 0 14px;display:flex;align-items:center}
+.step{display:inline-grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#eee9ff;color:#5c3be0;font-size:12px;font-weight:800;margin-right:8px;flex:none}
+.sub{font-size:12px;color:var(--muted);margin:-8px 0 12px}
+.upload{border:1.5px dashed #b9acd9;background:#faf8ff;border-radius:12px;text-align:center;padding:20px 12px;cursor:pointer;display:block}
+.upload:hover{border-color:var(--purple);background:#f5f1ff}.upload strong{display:block;margin:6px 0 3px}.upload small{color:var(--muted)}
+input[type=file]{display:none}
+.fileinfo{font-size:13px;color:#4e3da1;margin-top:10px;overflow-wrap:anywhere}
+.field{margin-top:13px}.field label{display:block;font-weight:650;font-size:13px;margin-bottom:5px}
+.field select,.field input[type=text],.field input[type=number]{width:100%;border:1px solid #dcd6e8;border-radius:9px;padding:9px 11px;background:#fff;color:var(--ink);font:inherit}
+.field select:disabled{background:#f6f4fa;color:#9a93ad}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;margin-top:13px}
+button{border:0;border-radius:10px;padding:11px 14px;font:inherit;font-weight:750;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:var(--purple);color:#fff;width:100%;margin-top:16px}.primary:hover:not(:disabled){background:#5636d7}
+.secondary{background:#f0ecfb;color:#4f36b5}.printbtn{background:#211b35;color:#fff}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.status{font-size:13px;color:var(--muted);margin-top:10px;min-height:18px}.status.error{color:#b42318}.status.ok{color:#24734a}
+.notice{background:#fff7e6;border:1px solid #f0d49b;color:#805b13;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:12px}
+.manuallist{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.mitem{display:flex;align-items:center;gap:8px;background:#f8f6fc;border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12px}
+.mitem span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mitem button{padding:2px 8px;background:#fff;border:1px solid #dcd6e8;color:#b42318;font-size:14px;line-height:1.2}
+.previewhead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.previewhead h2{margin:0}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:#f8f6fc;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--muted)}.stat b{display:block;color:var(--ink);font-size:18px}
+.empty{border:1px dashed #d7d0e7;border-radius:12px;padding:48px 20px;text-align:center;color:var(--muted)}.empty .symbol{font-size:34px;margin-bottom:8px}
+.footerhint{font-size:12px;color:var(--muted);margin-top:15px}
+.preview{position:sticky;top:12px}
+
+/* ---------- Label (shared by preview, A4 print and roll print) ---------- */
+.labelgrid{display:flex;flex-wrap:wrap;gap:var(--gap)}
+.slot{position:relative;width:var(--sw);height:var(--sh);flex:none;break-inside:avoid;page-break-inside:avoid;background:#fff}
+.label{width:var(--lw);height:var(--lh);padding:var(--pad);display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000}
+.bordered .label{outline:.2mm solid #8d86a0;outline-offset:-.2mm}
+.rot .label{position:absolute;left:0;top:0;transform-origin:0 0;transform:translate(var(--lh),0) rotate(90deg)}
+.label .brand{font-size:var(--f-brand);letter-spacing:.12em;color:#71668d;text-transform:uppercase;font-weight:800;margin-bottom:.8mm;flex:none}
+.compact .brand{display:none}
+.label .partname{font-size:var(--f-name);font-weight:800;line-height:1.15;margin-bottom:1mm;flex:none;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.compact .partname{-webkit-line-clamp:1}
+.label .info{display:grid;grid-template-columns:max-content 1fr;column-gap:1.5mm;font-size:var(--f-row);line-height:1.3;flex:none}
+.label .key{color:#555;white-space:nowrap}.label .val{font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.label .serial{border-top:.2mm solid #bbb;margin-top:1mm;padding-top:.8mm;font-size:var(--f-row);font-weight:800;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label .barcodebox{flex:1;min-height:3mm;margin-top:.6mm;display:flex}
+.label .barcodebox svg{width:100%;height:100%;display:block}
+.label .nobar{font-size:6pt;color:#777;margin:auto;text-align:center}
+
+@media(max-width:900px){main{grid-template-columns:1fr}.preview{position:static}header h1{font-size:25px}}
+@media print{
+ html,body{background:#fff}
+ header,.sidebar,.previewhead,.stats,.footerhint,.empty,.no-print{display:none!important}
+ main{display:block;max-width:none;margin:0;padding:0}
+ .panel{border:0;box-shadow:none;padding:0;border-radius:0}.preview{position:static}
+ .bordered .label{outline-color:#444}
+ .roll .labelgrid{display:block}
+ .roll .slot{page-break-after:always;break-after:page}
+ .roll .slot:last-child{page-break-after:auto;break-after:auto}
+}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">Part Controller</div><h1>Print-Label</h1><p>Kalo label nya banyak upload pake file excel, kalo cuma bisa langsung bikin di section ke 2.</p></header>
+<main>
+<div class="sidebar no-print">
+
+<!-- 1. BULK IMPORT -->
+<section class="panel" id="secBulk">
+  <h2><span class="step">1</span>Bulk import labels</h2>
+  <div class="sub">Upload an Excel or CSV file to generate many labels at once.</div>
+  <label class="upload" for="excelFile"><span style="font-size:26px">⇧</span><strong>Choose an Excel or CSV file</strong><small>.xlsx, .xls or .csv</small></label>
+  <input id="excelFile" type="file" accept=".xlsx,.xls,.csv">
+  <div id="fileinfo" class="fileinfo">No file selected yet.</div>
+  <div class="two">
+    <div class="field"><label for="sheet">Worksheet</label><select id="sheet" disabled><option>Upload a file first</option></select></div>
+    <div class="field"><label for="headerRow">Header row</label><select id="headerRow" disabled><option value="0">Row 1</option></select></div>
+  </div>
+  <div class="hint">Columns are detected automatically. Adjust below if needed.</div>
+  <div class="two">
+    <div class="field"><label for="partName">Part name</label><select id="partName" disabled></select></div>
+    <div class="field"><label for="partNumber">Part number</label><select id="partNumber" disabled></select></div>
+    <div class="field"><label for="category">Category</label><select id="category" disabled></select></div>
+    <div class="field"><label for="serialNumber">Serial number</label><select id="serialNumber" disabled></select></div>
+  </div>
+  <div class="two">
+    <div class="field"><label for="bulkCopies">Copies per item</label><input id="bulkCopies" type="number" min="1" max="100" value="1"></div>
+    <div class="field"><label for="copiesCol">Copies column <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="copiesCol" disabled></select></div>
+  </div>
+  <button id="importBtn" class="primary" disabled>Import to label preview</button>
+  <div id="bulkStatus" class="status">Upload a file to get started.</div>
+</section>
+
+<!-- 2. MANUAL -->
+<section class="panel" id="secManual">
+  <h2><span class="step">2</span>Manual label generator</h2>
+  <div class="sub">Type the details directly, no file needed.</div>
+  <div class="field" style="margin-top:0"><label for="mName">Part name</label><input id="mName" type="text" autocomplete="off"></div>
+  <div class="two">
+    <div class="field"><label for="mNumber">Part number</label><input id="mNumber" type="text" autocomplete="off"></div>
+    <div class="field"><label for="mCategory">Category</label><input id="mCategory" type="text" autocomplete="off"></div>
+  </div>
+  <div class="two">
+    <div class="field"><label for="mSerial">Serial number</label><input id="mSerial" type="text" autocomplete="off"></div>
+    <div class="field"><label for="mCopies">Number of copies</label><input id="mCopies" type="number" min="1" max="100" value="1"></div>
+  </div>
+  <button id="addManual" class="primary">Add label to preview</button>
+  <div id="manualStatus" class="status"></div>
+  <div id="manualList" class="manuallist"></div>
+</section>
+
+<!-- 3. SETTINGS -->
+<section class="panel" id="secSettings">
+  <h2><span class="step">3</span>Label &amp; print settings</h2>
+  <div class="sub">Applies to both bulk and manual labels.</div>
+  <div class="field" style="margin-top:0"><label for="size">Label size</label>
+    <select id="size">
+      <option value="50x25">50 × 25 mm — Small parts</option>
+      <option value="50x30">50 × 30 mm — Compact labels</option>
+      <option value="63x38" selected>63 × 38 mm — Standard labels</option>
+      <option value="70x40">70 × 40 mm — General spare parts</option>
+      <option value="100x50">100 × 50 mm — Large inventory labels</option>
+      <option value="custom">Custom size…</option>
+    </select></div>
+  <div class="two" id="customSize" style="display:none">
+    <div class="field"><label for="cw">Width (mm)</label><input id="cw" type="number" min="20" max="200" value="60"></div>
+    <div class="field"><label for="ch">Height (mm)</label><input id="ch" type="number" min="15" max="200" value="40"></div>
+  </div>
+  <div class="two">
+    <div class="field"><label for="orient">Page layout</label>
+      <select id="orient"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
+    <div class="field"><label for="mode">Printer mode</label>
+      <select id="mode"><option value="a4">A4 sticker sheet</option><option value="roll">Continuous label roll</option></select></div>
+  </div>
+  <div class="two" id="a4opts">
+    <div class="field"><label for="margin">Page margin (mm)</label><input id="margin" type="number" min="0" max="30" step="0.5" value="7"></div>
+    <div class="field"><label for="gap">Gap between labels (mm)</label><input id="gap" type="number" min="0" max="20" step="0.5" value="1.5"></div>
+  </div>
+  <label class="check"><input type="checkbox" id="border" checked> Print a thin border around each label</label>
+  <div class="notice" id="printerNotice"></div>
+</section>
+</div>
+
+<!-- SHARED PREVIEW + SINGLE PRINT -->
+<section class="panel preview">
+  <div class="previewhead"><h2>Label preview</h2>
+    <div class="actions no-print"><button id="clear" class="secondary" disabled>Clear all</button><button id="print" class="printbtn" disabled>Print labels ↗</button></div></div>
+  <div class="stats">
+    <div class="stat">Items<b id="itemCount">0</b></div>
+    <div class="stat">Labels to print<b id="labelCount">0</b></div>
+    <div class="stat">Label size<b id="sizeStat" style="font-size:15px;padding-top:3px">63 × 38 mm</b></div>
+    <div class="stat">Pages (A4)<b id="pageStat">–</b></div>
+  </div>
+  <div id="preview"></div>
+  <div class="footerhint">Barcodes use Code 128 and encode the serial number. Use A4 sticker sheets for a regular printer; a continuous roll needs a printer that supports roll media. In the print dialog, set scale to 100% and margins to default/none.</div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=v=>String(v??'').trim().toLowerCase().replace(/[_\-.]+/g,' ').replace(/\s+/g,' ');
+const A4={portrait:[210,297],landscape:[297,210]};
+
+/* ---------- state ---------- */
+let workbook=null,rawRows=[],headers=[],bulkItems=[],manualItems=[],bulkActive=false;
+
+/* ---------- column detection ---------- */
+const FIELDS={
+ partName:{exact:['part name','partname','name','nama part','nama barang','item name','item','description'],fuzzy:['part name','nama part','nama barang','item name','description','deskripsi']},
+ partNumber:{exact:['part number','part no','partnumber','pn','p n','part code','kode part','number'],fuzzy:['part number','part no','part code','kode part','p/n']},
+ category:{exact:['category','kategori','type','jenis'],fuzzy:['category','kategori']},
+ serialNumber:{exact:['serial number','serial no','serialnumber','serial','sn','s n'],fuzzy:['serial','s/n']},
+ copiesCol:{exact:['copies','copy','qty','quantity','jumlah','qty label','labels'],fuzzy:['copies','quantity','qty','jumlah']}
+};
+const ALL_ALIASES=Object.values(FIELDS).flatMap(f=>f.exact);
+function detectHeaderRow(rows){
+ let best=-1,bestScore=0,firstNonEmpty=-1;
+ rows.slice(0,30).forEach((r,i)=>{
+  if(firstNonEmpty<0&&r.some(c=>String(c??'').trim()!==''))firstNonEmpty=i;
+  const s=r.filter(c=>ALL_ALIASES.includes(norm(c))).length;
+  if(s>bestScore){bestScore=s;best=i}
+ });
+ return best>=0?best:firstNonEmpty;
+}
+function autoMap(){
+ const taken=new Set();
+ Object.keys(FIELDS).forEach(id=>{
+  const sel=$(id),nh=headers.map(norm);
+  let idx=nh.findIndex((h,i)=>!taken.has(i)&&FIELDS[id].exact.includes(h));
+  if(idx<0)idx=nh.findIndex((h,i)=>!taken.has(i)&&FIELDS[id].fuzzy.some(a=>h.includes(a)));
+  if(idx>=0){sel.value=String(idx);taken.add(idx)}
+ });
+}
+
+/* ---------- bulk import ---------- */
+function setBulkStatus(t,k=''){$('bulkStatus').textContent=t;$('bulkStatus').className='status '+k}
+$('excelFile').addEventListener('change',async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+  $('fileinfo').textContent=`${file.name} · ${(file.size/1024).toFixed(1)} KB`;
+  $('sheet').innerHTML=workbook.SheetNames.map(s=>`<option>${esc(s)}</option>`).join('');$('sheet').disabled=false;
+  loadSheet(workbook.SheetNames[0]);
+ }catch(err){setBulkStatus('Could not read this file. Please check that it is a valid Excel or CSV file.','error')}
+});
+$('sheet').addEventListener('change',()=>loadSheet($('sheet').value));
+function loadSheet(name){
+ rawRows=XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:false});
+ const h=detectHeaderRow(rawRows);
+ if(h<0){setBulkStatus('This worksheet appears to be empty.','error');$('importBtn').disabled=true;return}
+ $('headerRow').innerHTML=rawRows.slice(0,Math.min(rawRows.length,30)).map((r,i)=>`<option value="${i}">Row ${i+1}: ${esc(r.filter(x=>String(x).trim()).slice(0,3).join(' · ').slice(0,40)||'(blank)')}</option>`).join('');
+ $('headerRow').disabled=false;$('headerRow').value=String(h);
+ buildMapping();
+ setBulkStatus('File loaded. Columns were detected automatically; check them, then import.','ok');
+}
+$('headerRow').addEventListener('change',()=>{buildMapping();if(bulkActive)importBulk()});
+function buildMapping(){
+ headers=(rawRows[Number($('headerRow').value)||0]||[]).map((h,i)=>String(h??'').trim()||`Column ${i+1}`);
+ Object.keys(FIELDS).forEach(id=>{
+  const optional=id==='copiesCol'?'— Use "Copies per item" —':'— None —';
+  $(id).innerHTML=`<option value="">${optional}</option>`+headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join('');
+  $(id).disabled=false;
+ });
+ autoMap();$('importBtn').disabled=false;
+}
+['partName','partNumber','category','serialNumber','copiesCol','bulkCopies'].forEach(id=>$(id).addEventListener('change',()=>{if(bulkActive)importBulk()}));
+const clampCopies=v=>Math.max(1,Math.min(100,parseInt(v)||1));
+function importBulk(){
+ if(!rawRows.length)return;
+ const cols={};
+ for(const id of ['partName','partNumber','category','serialNumber','copiesCol'])cols[id]=$(id).value===''?-1:Number($(id).value);
+ if(['partName','partNumber','category','serialNumber'].every(k=>cols[k]<0)){setBulkStatus('Please map at least one column.','error');return}
+ const get=(r,i)=>i<0?'':String(r[i]??'').trim();
+ const def=clampCopies($('bulkCopies').value);
+ bulkItems=rawRows.slice((Number($('headerRow').value)||0)+1).filter(r=>r.some(v=>String(v??'').trim()!==''))
+  .map(r=>({partName:get(r,cols.partName),partNumber:get(r,cols.partNumber),category:get(r,cols.category),serialNumber:get(r,cols.serialNumber),
+   copies:cols.copiesCol>=0?clampCopies(get(r,cols.copiesCol)):def}))
+  .filter(r=>r.partName||r.partNumber||r.category||r.serialNumber);
+ if(!bulkItems.length){setBulkStatus('No data rows found below the header row.','error');bulkActive=false;render();return}
+ bulkActive=true;
+ const missing=cols.serialNumber<0?' No serial column mapped, so no barcodes will be made.':'';
+ setBulkStatus(`Imported ${bulkItems.length} item(s).${missing}`,missing?'error':'ok');
+ render();
+}
+$('importBtn').addEventListener('click',importBulk);
+
+/* ---------- manual ---------- */
+function renderManualList(){
+ $('manualList').innerHTML=manualItems.map((m,i)=>`<div class="mitem"><span><b>${esc(m.partName||m.partNumber||m.serialNumber||'Label')}</b>${m.serialNumber?' · '+esc(m.serialNumber):''} · ×${m.copies}</span><button data-i="${i}" title="Remove">×</button></div>`).join('');
+}
+$('manualList').addEventListener('click',e=>{
+ const b=e.target.closest('button[data-i]');if(!b)return;
+ manualItems.splice(Number(b.dataset.i),1);renderManualList();render();
+});
+function addManual(){
+ const it={partName:$('mName').value.trim(),partNumber:$('mNumber').value.trim(),category:$('mCategory').value.trim(),serialNumber:$('mSerial').value.trim(),copies:clampCopies($('mCopies').value)};
+ const st=$('manualStatus');
+ if(!(it.partName||it.partNumber||it.category||it.serialNumber)){st.textContent='Enter at least one field.';st.className='status error';return}
+ manualItems.push(it);
+ ['mName','mNumber','mCategory','mSerial'].forEach(id=>$(id).value='');$('mCopies').value=1;$('mName').focus();
+ st.textContent=`Added. ${manualItems.length} manual item(s) in the preview.`;st.className='status ok';
+ renderManualList();render();
+}
+$('addManual').addEventListener('click',addManual);
+['mName','mNumber','mCategory','mSerial','mCopies'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addManual()}}));
+
+/* ---------- settings ---------- */
+function getSize(){
+ if($('size').value==='custom'){
+  const w=Math.max(20,Math.min(200,parseFloat($('cw').value)||60)),h=Math.max(15,Math.min(200,parseFloat($('ch').value)||40));return[w,h];
+ }
+ return $('size').value.split('x').map(Number);
+}
+function applySettings(){
+ const [w,h]=getSize(),mode=$('mode').value,orient=$('orient').value;
+ const margin=Math.max(0,parseFloat($('margin').value)||0),gap=Math.max(0,parseFloat($('gap').value)||0);
+ const rotate=mode==='roll'&&orient==='portrait'; // roll: portrait = label turned 90° so the page is H×W
+ const root=document.documentElement.style;
+ root.setProperty('--lw',w+'mm');root.setProperty('--lh',h+'mm');
+ root.setProperty('--sw',(rotate?h:w)+'mm');root.setProperty('--sh',(rotate?w:h)+'mm');
+ root.setProperty('--gap',gap+'mm');
+ const u=Math.max(Math.min(h/38,w/63),.6);
+ root.setProperty('--f-brand',Math.max(7*u,5.5).toFixed(2)+'pt');
+ root.setProperty('--f-name',Math.max(10*u,8).toFixed(2)+'pt');
+ root.setProperty('--f-row',Math.max(7.5*u,6).toFixed(2)+'pt');
+ root.setProperty('--pad',Math.max(2*u,1.4).toFixed(2)+'mm');
+ // page rule: real @page, injected so it follows the settings
+ $('pageStyle').textContent=mode==='roll'
+  ?`@page{size:${rotate?h:w}mm ${rotate?w:h}mm;margin:0}`
+  :`@page{size:A4 ${orient};margin:${margin}mm}`;
+ document.body.classList.toggle('roll',mode==='roll');
+ $('customSize').style.display=$('size').value==='custom'?'grid':'none';
+ $('a4opts').style.display=mode==='a4'?'grid':'none';
+ $('orient').title=mode==='a4'?'Sets the A4 page orientation':'Landscape = label printed as designed; Portrait = label turned 90°';
+ $('printerNotice').textContent=mode==='a4'
+  ?'A regular A4 printer needs compatible A4 sticker sheets. Page layout sets the A4 orientation; the label size is set separately above.'
+  :'Roll mode prints one label per page at the exact label size. This needs a printer that supports roll media; a regular A4 printer cannot feed a label roll. Portrait turns each label 90° on the page.';
+ $('sizeStat').textContent=`${w} × ${h} mm`;
+ return {w,h,mode,orient,margin,gap,compact:h<32};
+}
+
+/* ---------- shared preview ---------- */
+function labelHtml(r,i){
+ return `<div class="slot"><article class="label"><div class="brand">Part identification</div><div class="partname">${esc(r.partName||'—')}</div>`+
+ `<div class="info"><span class="key">Part number:</span><span class="val">${esc(r.partNumber||'—')}</span><span class="key">Category:</span><span class="val">${esc(r.category||'—')}</span></div>`+
+ `<div class="serial">Serial number: ${esc(r.serialNumber||'—')}</div><div class="barcodebox" data-i="${i}"></div></article></div>`;
+}
+function drawBarcode(box,value){
+ if(!value){box.innerHTML='<div class="nobar">No serial number, barcode skipped</div>';return}
+ try{
+  if(typeof JsBarcode==='undefined')throw new Error('lib');
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  JsBarcode(svg,value,{format:'CODE128',displayValue:false,margin:0,height:40,width:2});
+  const w=svg.getAttribute('width'),h=svg.getAttribute('height');
+  if(!svg.getAttribute('viewBox'))svg.setAttribute('viewBox',`0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+  svg.removeAttribute('width');svg.removeAttribute('height');
+  svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('role','img');svg.setAttribute('aria-label','Barcode for serial number '+value);
+  box.appendChild(svg);
+ }catch(e){box.innerHTML='<div class="nobar" style="color:#b42318">Barcode unavailable for this value</div>'}
+}
+function render(){
+ const s=applySettings();
+ const items=[...bulkItems,...manualItems];
+ const all=[];items.forEach(r=>{for(let i=0;i<r.copies;i++)all.push(r)});
+ $('itemCount').textContent=items.length;$('labelCount').textContent=all.length;
+ $('print').disabled=$('clear').disabled=!all.length;
+ const pv=$('preview');
+ pv.className=(s.compact?'compact ':'')+($('border').checked?'bordered':'');
+ if(!all.length){
+  $('pageStat').textContent='–';
+  pv.innerHTML='<div class="empty"><div class="symbol">▤</div><strong>Your labels will appear here</strong><div style="margin-top:5px">Import a spreadsheet or add a label manually.</div></div>';
+  return;
+ }
+ if(s.mode==='a4'){
+  const [pw,ph]=A4[s.orient],uw=pw-2*s.margin,uh=ph-2*s.margin;
+  const cols=Math.max(1,Math.floor((uw+s.gap)/(s.w+s.gap))),rows=Math.max(1,Math.floor((uh+s.gap)/(s.h+s.gap)));
+  const fits=s.w<=uw&&s.h<=uh;
+  $('pageStat').textContent=fits?Math.ceil(all.length/(cols*rows)):'⚠';
+ }else $('pageStat').textContent='n/a';
+ pv.innerHTML='<div class="labelgrid">'+all.map(labelHtml).join('')+'</div>';
+ pv.querySelectorAll('.barcodebox').forEach(b=>drawBarcode(b,all[Number(b.dataset.i)].serialNumber));
+}
+['size','cw','ch','orient','mode','margin','gap','border'].forEach(id=>$(id).addEventListener('input',render));
+
+$('print').addEventListener('click',()=>window.print());
+$('clear').addEventListener('click',()=>{bulkItems=[];manualItems=[];bulkActive=false;renderManualList();$('manualStatus').textContent='';setBulkStatus('Preview cleared. Re-import to add the file again.');render()});
+render();
+</script>
+</body>
+</html>
