@@ -49,6 +49,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .empty{border:1px dashed #d7d0e7;border-radius:12px;padding:48px 20px;text-align:center;color:var(--muted)}.empty .symbol{font-size:34px;margin-bottom:8px}
 .footerhint{font-size:12px;color:var(--muted);margin-top:15px}
 .preview{position:sticky;top:12px}
+.exportbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.exportbar .lbl{font-size:12px;color:var(--muted);font-weight:650;margin-right:2px}
+.exportbar button{padding:8px 12px;font-size:13px}.exportnote{font-size:12px;margin:-6px 0 14px;min-height:0}
 
 /* ---------- Label (shared by preview, A4 print and roll print) ---------- */
 .labelgrid{display:flex;flex-wrap:wrap;gap:var(--gap)}
@@ -70,7 +72,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:900px){main{grid-template-columns:1fr}.preview{position:static}header h1{font-size:25px}}
 @media print{
  html,body{background:#fff}
- header,.sidebar,.previewhead,.stats,.footerhint,.empty,.no-print{display:none!important}
+ header,.sidebar,.previewhead,.stats,.exportbar,.exportnote,.footerhint,.empty,.no-print{display:none!important}
  main{display:block;max-width:none;margin:0;padding:0}
  .panel{border:0;box-shadow:none;padding:0;border-radius:0}.preview{position:static}
  .bordered .label{outline-color:#444}
@@ -171,6 +173,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div class="stat">Label size<b id="sizeStat" style="font-size:15px;padding-top:3px">63 × 38 mm</b></div>
     <div class="stat">Pages (A4)<b id="pageStat">–</b></div>
   </div>
+  <div class="exportbar no-print"><span class="lbl">Save as</span>
+    <button id="savePdf" class="secondary" disabled>PDF</button><button id="saveXlsx" class="secondary" disabled>Excel</button><button id="saveDocx" class="secondary" disabled>Word</button></div>
+  <div id="exportStatus" class="status exportnote no-print"></div>
   <div id="preview"></div>
   <div class="footerhint">Barcodes use Code 128 and encode the serial number. Use A4 sticker sheets for a regular printer; a continuous roll needs a printer that supports roll media. In the print dialog, set scale to 100% and margins to default/none.</div>
 </section>
@@ -344,7 +349,7 @@ function render(){
  const items=[...bulkItems,...manualItems];
  const all=[];items.forEach(r=>{for(let i=0;i<r.copies;i++)all.push(r)});
  $('itemCount').textContent=items.length;$('labelCount').textContent=all.length;
- $('print').disabled=$('clear').disabled=!all.length;
+ $('print').disabled=$('clear').disabled=!all.length;['savePdf','saveXlsx','saveDocx'].forEach(id=>$(id).disabled=!all.length);
  const pv=$('preview');
  pv.className=(s.compact?'compact ':'')+($('border').checked?'bordered':'');
  if(!all.length){
@@ -362,6 +367,180 @@ function render(){
  pv.querySelectorAll('.barcodebox').forEach(b=>drawBarcode(b,all[Number(b.dataset.i)].serialNumber));
 }
 ['size','cw','ch','orient','mode','margin','gap','border'].forEach(id=>$(id).addEventListener('input',render));
+
+
+/* ================= SAVE AS PDF / EXCEL / WORD ================= */
+const MM=0.352778; // 1 pt in mm
+const LIBS={
+ jspdf:{url:'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',get:()=>window.jspdf&&window.jspdf.jsPDF},
+ docx:{url:'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',get:()=>window.docx}
+};
+const libP={};
+function loadLib(k){
+ if(LIBS[k].get())return Promise.resolve();
+ return libP[k]||(libP[k]=new Promise((res,rej)=>{
+  const sc=document.createElement('script');sc.src=LIBS[k].url;sc.onload=res;sc.onerror=()=>{delete libP[k];rej(new Error('Could not load the '+k+' library. Check your internet connection.'))};document.head.appendChild(sc);
+ }));
+}
+function setExp(t,k=''){$('exportStatus').textContent=t;$('exportStatus').className='status exportnote no-print '+k}
+function expand(){const items=[...bulkItems,...manualItems],all=[];items.forEach(r=>{for(let i=0;i<r.copies;i++)all.push(r)});return{items,all}}
+function metrics(s){const u=Math.max(Math.min(s.h/38,s.w/63),.6);return{u,pad:Math.max(2*u,1.4),brand:Math.max(7*u,5.5),name:Math.max(10*u,8),row:Math.max(7.5*u,6),compact:s.h<32}}
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+const L1=t=>String(t??'').replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/\u2026/g,'...').replace(/[^\x00-\xFF]/g,'?'); // PDF standard fonts only cover Latin-1
+function pageFit(s){ // A4 grid; returns null if a label is bigger than the usable page
+ const [pw,ph]=A4[s.orient],uw=pw-2*s.margin,uh=ph-2*s.margin;
+ if(s.w>uw||s.h>uh)return null;
+ return{pw,ph,uw,uh,cols:Math.max(1,Math.floor((uw+s.gap)/(s.w+s.gap))),rows:Math.max(1,Math.floor((uh+s.gap)/(s.h+s.gap)))};
+}
+const tooBig='This label size does not fit the A4 page with the current margin. Reduce the margin or choose a smaller label.';
+const noteRot='Portrait roll: PDF turns the label 90°; Word keeps it upright on a landscape page.';
+
+/* ---- barcode helpers ---- */
+function barBits(v){const o={};JsBarcode(o,v,{format:'CODE128'});return o.encodings.map(e=>e.data).join('')}
+const pngCache={};
+function barPng(v){
+ if(pngCache[v])return pngCache[v];
+ const c=document.createElement('canvas');JsBarcode(c,v,{format:'CODE128',displayValue:false,margin:0,height:60,width:3});
+ const b=atob(c.toDataURL('image/png').split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+ return pngCache[v]=u;
+}
+
+/* ================= PDF (vector text + vector barcode) ================= */
+function pdfLabel(doc,x0,y0,r,s,m,rot){
+ const W=s.w,H=s.h,iw=W-2*m.pad;
+ const T=(t,lx,ly)=>{const px=rot?x0+H-ly:x0+lx,py=rot?y0+lx:y0+ly;rot?doc.text(t,px,py,{angle:-90}):doc.text(t,px,py)};
+ const R=(lx,ly,w,h,st)=>rot?doc.rect(x0+H-ly-h,y0+lx,h,w,st):doc.rect(x0+lx,y0+ly,w,h,st);
+ const fit=(t,max)=>{t=L1(t);if(doc.getTextWidth(t)<=max)return t;while(t.length>1&&doc.getTextWidth(t+'...')>max)t=t.slice(0,-1);return t+'...'};
+ let y=m.pad;
+ doc.setFont('helvetica','bold');
+ if(!m.compact){const sz=m.brand*MM;doc.setFontSize(m.brand);doc.setTextColor(113,102,141);T('PART NAME',m.pad,y+sz*.8);y+=sz*1.15+.8}
+ { // part name, max 2 lines (1 when compact)
+  const sz=m.name*MM,max=m.compact?1:2;doc.setFontSize(m.name);doc.setTextColor(0);
+  let lines=doc.splitTextToSize(L1(r.partName||'—'),iw);
+  if(lines.length>max){lines=lines.slice(0,max);lines[max-1]=fit(lines[max-1]+'...',iw)}
+  lines.forEach((ln,i)=>T(ln,m.pad,y+sz*.85+i*sz*1.15));y+=lines.length*sz*1.15+1;
+ }
+ { // info rows
+  const sz=m.row*MM;doc.setFontSize(m.row);doc.setFont('helvetica','normal');
+  const keyW=Math.max(doc.getTextWidth('Part number:'),doc.getTextWidth('Category:'))+1.5;
+  [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
+   doc.setFont('helvetica','normal');doc.setTextColor(85);T(k,m.pad,y+sz*.9);
+   doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit(v||'—',iw-keyW),m.pad+keyW,y+sz*.9);y+=sz*1.3;
+  });
+  y+=1;doc.setFillColor(187);R(m.pad,y,iw,.2,'F');y+=1;
+  doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit('Serial number: '+(r.serialNumber||'—'),iw),m.pad,y+sz*.85);y+=sz*1.3+.6;
+ }
+ const bh=Math.max(2,H-m.pad-y),code=r.serialNumber;
+ if(code){
+  try{const bits=barBits(code),mw=iw/bits.length;doc.setFillColor(0);
+   for(let i=0;i<bits.length;){if(bits[i]==='1'){let j=i;while(j<bits.length&&bits[j]==='1')j++;R(m.pad+i*mw,y,(j-i)*mw,bh,'F');i=j}else i++}
+  }catch(e){doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(180,35,24);T('Barcode unavailable for this value',m.pad,y+3)}
+ }else{doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(119);T('No serial number, barcode skipped',m.pad,y+3)}
+ if($('border').checked){doc.setDrawColor(68);doc.setLineWidth(.2);R(.1,.1,W-.2,H-.2,'S')}
+}
+async function exportPDF(){
+ const s=applySettings(),{all}=expand();if(!all.length)return;
+ await loadLib('jspdf');const {jsPDF}=window.jspdf,m=metrics(s),roll=s.mode==='roll';
+ let doc;
+ if(roll){const rot=s.orient==='portrait',pw=rot?s.h:s.w,ph=rot?s.w:s.h;
+  doc=new jsPDF({unit:'mm',format:[pw,ph],orientation:pw>ph?'landscape':'portrait'});
+  all.forEach((r,i)=>{if(i)doc.addPage([pw,ph],pw>ph?'landscape':'portrait');pdfLabel(doc,0,0,r,s,m,rot)});
+ }else{
+  const f=pageFit(s);if(!f)throw new Error(tooBig);
+  doc=new jsPDF({unit:'mm',format:'a4',orientation:s.orient});const per=f.cols*f.rows;
+  all.forEach((r,i)=>{if(i&&i%per===0)doc.addPage('a4',s.orient);const k=i%per;
+   pdfLabel(doc,s.margin+(k%f.cols)*(s.w+s.gap),s.margin+Math.floor(k/f.cols)*(s.h+s.gap),r,s,m,false)});
+ }
+ doc.save(`labels-${stamp()}.pdf`);
+ setExp(`PDF saved: ${all.length} label(s), ${doc.getNumberOfPages()} page(s). `+(roll&&s.orient==='portrait'?noteRot:''),'ok');
+}
+
+/* ================= EXCEL (data list: re-importable) ================= */
+function exportXLSX(){
+ const {items}=expand();if(!items.length)return;
+ const rows=items.map(r=>({'Part Name':r.partName,'Part Number':r.partNumber,'Category':r.category,'Serial Number':r.serialNumber,'Copies':r.copies}));
+ const ws=XLSX.utils.json_to_sheet(rows,{header:['Part Name','Part Number','Category','Serial Number','Copies']});
+ ws['!cols']=[{wch:32},{wch:20},{wch:18},{wch:22},{wch:8}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Labels');
+ XLSX.writeFile(wb,`labels-${stamp()}.xlsx`);
+ setExp(`Excel saved: ${items.length} item(s). You can import this file again in section 1 (Copies is detected automatically).`,'ok');
+}
+
+/* ================= WORD (.docx) ================= */
+const TW=mm=>Math.round(mm*56.6929),PX=mm=>Math.max(1,Math.round(mm*3.7795));
+const mctx=document.createElement('canvas').getContext('2d');
+function tw(t,pt,bold){mctx.font=`${bold?'bold ':''}${pt}pt Arial`;return mctx.measureText(t).width/3.7795}
+function fitW(t,pt,bold,max){t=String(t??'');if(tw(t,pt,bold)<=max)return t;while(t.length>1&&tw(t+'...',pt,bold)>max)t=t.slice(0,-1);return t+'...'}
+function wordLabel(D,r,s,m){
+ const iw=s.w-2*m.pad,out=[];let used=0;
+ const sp=(line,before=0,after=0)=>({line:TW(line),lineRule:D.LineRuleType.EXACT,before:TW(before),after:TW(after)});
+ const run=(text,pt,o={})=>new D.TextRun({text,font:'Arial',size:Math.round(pt*2),...o});
+ if(!m.compact){const lh=m.brand*MM*1.25;out.push(new D.Paragraph({spacing:sp(lh,0,.8),children:[run('PART NAME',m.brand,{bold:true,color:'71668D'})]}));used+=lh+.8}
+ { const lh=m.name*MM*1.25,txt=String(r.partName||'—'),maxLines=m.compact?1:2;
+  const t=maxLines===1?fitW(txt,m.name,true,iw):fitW(txt,m.name,true,iw*1.8);
+  const n=Math.min(maxLines,tw(t,m.name,true)>iw*.98?2:1);
+  out.push(new D.Paragraph({spacing:sp(lh,0,1),children:[run(t,m.name,{bold:true})]}));used+=n*lh+1;
+ }
+ { const lh=m.row*MM*1.4,keyW=Math.max(tw('Part number:',m.row),tw('Category:',m.row))+1.5;
+  [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
+   out.push(new D.Paragraph({spacing:sp(lh),tabStops:[{type:D.TabStopType.LEFT,position:TW(keyW)}],
+    children:[run(k,m.row,{color:'555555'}),new D.TextRun({children:[new D.Tab(),fitW(v||'—',m.row,true,iw-keyW)],font:'Arial',size:Math.round(m.row*2),bold:true})]}));used+=lh});
+  out.push(new D.Paragraph({spacing:sp(lh,1,0),border:{top:{style:D.BorderStyle.SINGLE,size:4,color:'BBBBBB',space:1}},
+   children:[run(fitW('Serial number: '+(r.serialNumber||'—'),m.row,true,iw),m.row,{bold:true})]}));used+=lh+1+.7;
+ }
+ const bh=Math.max(3,s.h-2*m.pad-used-1.4);
+ if(r.serialNumber){
+  try{out.push(new D.Paragraph({spacing:{before:TW(.6),after:0},children:[new D.ImageRun({data:barPng(r.serialNumber),transformation:{width:PX(iw),height:PX(bh)}})]}));return out}catch(e){}
+ }
+ out.push(new D.Paragraph({spacing:sp(m.row*MM*1.4,.6),children:[run(r.serialNumber?'Barcode unavailable for this value':'No serial number, barcode skipped',6,{color:'777777'})]}));
+ return out;
+}
+async function exportDOCX(){
+ const s=applySettings(),{all}=expand();if(!all.length)return;
+ await loadLib('docx');const D=window.docx,m=metrics(s),roll=s.mode==='roll';
+ const none={style:D.BorderStyle.NONE,size:0,color:'FFFFFF'},line={style:D.BorderStyle.SINGLE,size:4,color:'8D86A0'};
+ const noB={top:none,bottom:none,left:none,right:none},lineB={top:line,bottom:line,left:line,right:line};
+ const padM={top:TW(m.pad),bottom:TW(m.pad),left:TW(m.pad),right:TW(m.pad)};
+ const tiny=()=>new D.Paragraph({spacing:{line:20,lineRule:D.LineRuleType.EXACT,before:0,after:0},children:[new D.TextRun({text:'',size:2})]});
+ let sections;
+ if(roll){
+  const pw=Math.min(s.w,s.h),ph=Math.max(s.w,s.h);
+  sections=all.map(r=>({properties:{page:{size:{width:TW(s.h<s.w?s.h:s.w),height:TW(s.h<s.w?s.w:s.h),orientation:s.w>s.h?D.PageOrientation.LANDSCAPE:D.PageOrientation.PORTRAIT},
+   margin:{top:TW(m.pad),bottom:TW(m.pad),left:TW(m.pad),right:TW(m.pad),header:0,footer:0}}},children:wordLabel(D,r,s,m)}));
+ }else{
+  const f=pageFit(s);if(!f)throw new Error(tooBig);
+  const rowsPP=Math.max(1,Math.floor((f.uh-1.5+s.gap)/(s.h+s.gap))),per=f.cols*rowsPP;
+  const widths=[];for(let c=0;c<f.cols;c++){if(c&&s.gap>0)widths.push(TW(s.gap));widths.push(TW(s.w))}
+  const children=[];
+  for(let p=0;p<all.length;p+=per){
+   const chunk=all.slice(p,p+per),rows=[];
+   for(let rr=0;rr*f.cols<chunk.length;rr++){
+    if(rr&&s.gap>0)rows.push(new D.TableRow({height:{value:TW(s.gap),rule:D.HeightRule.EXACT},cantSplit:true,children:widths.map(w=>new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders:noB,margins:{top:0,bottom:0,left:0,right:0},children:[tiny()]}))}));
+    const cells=[];
+    for(let c=0;c<f.cols;c++){
+     if(c&&s.gap>0)cells.push(new D.TableCell({width:{size:TW(s.gap),type:D.WidthType.DXA},borders:noB,children:[tiny()]}));
+     const r=chunk[rr*f.cols+c];
+     cells.push(new D.TableCell({width:{size:TW(s.w),type:D.WidthType.DXA},margins:padM,borders:r&&$('border').checked?lineB:noB,children:r?wordLabel(D,r,s,m):[tiny()]}));
+    }
+    rows.push(new D.TableRow({height:{value:TW(s.h),rule:D.HeightRule.EXACT},cantSplit:true,children:cells}));
+   }
+   if(p)children.push(new D.Paragraph({pageBreakBefore:true,spacing:{line:20,lineRule:D.LineRuleType.EXACT,before:0,after:0},children:[new D.TextRun({text:'',size:2})]}));
+   children.push(new D.Table({width:{size:widths.reduce((a,b)=>a+b,0),type:D.WidthType.DXA},columnWidths:widths,layout:D.TableLayoutType.FIXED,borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows}));
+  }
+  children.push(tiny());
+  sections=[{properties:{page:{size:{width:TW(210),height:TW(297),orientation:s.orient==='landscape'?D.PageOrientation.LANDSCAPE:D.PageOrientation.PORTRAIT},
+   margin:{top:TW(s.margin),bottom:TW(s.margin),left:TW(s.margin),right:TW(s.margin),header:0,footer:0}}},children}];
+ }
+ const doc=new D.Document({creator:'Part Controller',title:'Labels',sections});
+ saveBlob(await D.Packer.toBlob(doc),`labels-${stamp()}.docx`);
+ setExp(`Word file saved: ${all.length} label(s). `+(roll&&s.orient==='portrait'?noteRot:''),'ok');
+}
+
+[['savePdf',exportPDF],['saveXlsx',async()=>exportXLSX()],['saveDocx',exportDOCX]].forEach(([id,fn])=>$(id).addEventListener('click',async()=>{
+ const b=$(id);b.disabled=true;setExp('Preparing file…');
+ try{await fn()}catch(e){setExp(e.message||'Could not create the file.','error')}finally{b.disabled=!expand().all.length}
+}));
 
 $('print').addEventListener('click',()=>window.print());
 $('clear').addEventListener('click',()=>{bulkItems=[];manualItems=[];bulkActive=false;renderManualList();$('manualStatus').textContent='';setBulkStatus('Preview cleared. Re-import to add the file again.');render()});
