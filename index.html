@@ -64,7 +64,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .compact .partname{-webkit-line-clamp:1}
 .label .info{display:grid;grid-template-columns:max-content 1fr;column-gap:1.5mm;font-size:var(--f-row);line-height:1.3;flex:none}
 .label .key{color:#555;white-space:nowrap}.label .val{font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.label .serial{border-top:.2mm solid #bbb;margin-top:1mm;padding-top:.8mm;font-size:var(--f-row);font-weight:800;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label .serial{border-top:.2mm solid #bbb;margin-top:1mm;padding-top:.8mm;font-size:var(--f-name);line-height:1.15;font-weight:800;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .label .barcodebox{flex:1;min-height:3mm;margin-top:.6mm;display:flex}
 .label .barcodebox svg{width:100%;height:100%;display:block}
 .label .nobar{font-size:6pt;color:#777;margin:auto;text-align:center}
@@ -429,7 +429,7 @@ function pdfLabel(doc,x0,y0,r,s,m,rot){
    doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit(v||'—',iw-keyW),m.pad+keyW,y+sz*.9);y+=sz*1.3;
   });
   y+=1;doc.setFillColor(187);R(m.pad,y,iw,.2,'F');y+=1;
-  doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit('Serial number: '+(r.serialNumber||'—'),iw),m.pad,y+sz*.85);y+=sz*1.3+.6;
+  const ss=m.name*MM;doc.setFontSize(m.name);doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit('Serial number: '+(r.serialNumber||'—'),iw),m.pad,y+ss*.85);y+=ss*1.15+.6;
  }
  const bh=Math.max(2,H-m.pad-y),code=r.serialNumber;
  if(code){
@@ -486,8 +486,8 @@ function wordLabel(D,r,s,m){
   [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
    out.push(new D.Paragraph({spacing:sp(lh),tabStops:[{type:D.TabStopType.LEFT,position:TW(keyW)}],
     children:[run(k,m.row,{color:'555555'}),new D.TextRun({children:[new D.Tab(),fitW(v||'—',m.row,true,iw-keyW)],font:'Arial',size:Math.round(m.row*2),bold:true})]}));used+=lh});
-  out.push(new D.Paragraph({spacing:sp(lh,1,0),border:{top:{style:D.BorderStyle.SINGLE,size:4,color:'BBBBBB',space:1}},
-   children:[run(fitW('Serial number: '+(r.serialNumber||'—'),m.row,true,iw),m.row,{bold:true})]}));used+=lh+1+.7;
+  const sl=m.name*MM*1.25;out.push(new D.Paragraph({spacing:sp(sl,1,0),border:{top:{style:D.BorderStyle.SINGLE,size:4,color:'BBBBBB',space:1}},
+   children:[run(fitW('Serial number: '+(r.serialNumber||'—'),m.name,true,iw),m.name,{bold:true})]}));used+=sl+1+.7;
  }
  const bh=Math.max(3,s.h-2*m.pad-used-1.4);
  if(r.serialNumber){
