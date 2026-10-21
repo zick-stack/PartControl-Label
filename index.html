@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Part Controller - Print Label</title>
+<title>EPS Part Controller - Print Label</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -86,13 +86,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body>
-<header><div class="eyebrow">Part Controller</div><h1>Print-Label</h1><p>Kalo label nya banyak upload pake file excel, kalo cuma 1 bisa bikin manual di section ke 2.</p></header>
+<header><div class="eyebrow">Part Controller</div><h1>Print-Label</h1><p>Kalo mau bikin label nya banyak upload pake file excel, kalo cuma 1 bisa bikin manual di section ke 2.</p></header>
 <main>
 <div class="sidebar no-print">
 
 <!-- 1. BULK IMPORT -->
 <section class="panel" id="secBulk">
-  <h2><span class="step">1</span>Bulk import labels</h2>
+  <h2><span class="step">1</span>Multiple import labels</h2>
   <div class="sub">Upload an Excel or CSV file to generate many labels at once.</div>
   <label class="upload" for="excelFile"><span style="font-size:26px">⇧</span><strong>Choose an Excel or CSV file</strong><small>.xlsx, .xls or .csv</small></label>
   <input id="excelFile" type="file" accept=".xlsx,.xls,.csv">
