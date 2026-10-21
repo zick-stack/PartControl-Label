@@ -1,0 +1,535 @@
+/* ==========================================================
+   EPS Part Controller - Print Label
+   Sections:
+     1. Variables & base
+     2. Page layout (header, main, sidebar, panels)
+     3. Form controls & buttons
+     4. Import / manual list / notices
+     5. Preview panel (stats, export bar, empty state)
+     6. Label design (shared by preview, A4 print, roll print)
+     7. Responsive
+     8. Print rules
+   ========================================================== */
+
+
+/* ---------- 1. Variables & base ---------- */
+:root {
+  /* colors */
+  --ink: #211b35;
+  --muted: #6f6882;
+  --purple: #6d4aff;
+  --line: #e7e2f0;
+  --bg: #f7f5fb;
+  --white: #fff;
+
+  /* label geometry (overwritten by app.js from the settings) */
+  --qr: 17mm;      /* QR code size */
+  --lw: 63mm;      /* label width */
+  --lh: 38mm;      /* label height */
+  --sw: 63mm;      /* slot width (swapped with --sh when rotated) */
+  --sh: 38mm;      /* slot height */
+  --gap: 1.5mm;    /* gap between labels */
+  --pad: 2mm;      /* label inner padding */
+
+  /* label fonts */
+  --f-brand: 5.5pt;
+  --f-name: 10pt;
+  --f-row: 7.5pt;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+
+/* ---------- 2. Page layout ---------- */
+header {
+  background: linear-gradient(115deg, #251b45, #6345c7);
+  color: #fff;
+  padding: 28px max(22px, calc((100% - 1180px) / 2));
+}
+
+header .eyebrow {
+  font-size: 12px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .78;
+  font-weight: 700;
+}
+
+header h1 { margin: 5px 0; font-size: 30px; }
+header p  { margin: 0; opacity: .82; }
+
+main {
+  max-width: 1180px;
+  margin: 24px auto;
+  padding: 0 18px 40px;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 5px 20px #33215b08;
+}
+
+h2 {
+  font-size: 17px;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+}
+
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 8px;
+  background: #eee9ff;
+  color: #5c3be0;
+  font-size: 12px;
+  font-weight: 800;
+  margin-right: 8px;
+  flex: none;
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin: -8px 0 12px;
+}
+
+
+/* ---------- 3. Form controls & buttons ---------- */
+.field { margin-top: 13px; }
+
+.field label {
+  display: block;
+  font-weight: 650;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.field select,
+.field input[type=text],
+.field input[type=number] {
+  width: 100%;
+  border: 1px solid #dcd6e8;
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.field select:disabled {
+  background: #f6f4fa;
+  color: #9a93ad;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  margin-top: 13px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.primary { background: var(--purple); color: #fff; width: 100%; margin-top: 16px; }
+.primary:hover:not(:disabled) { background: #5636d7; }
+
+.secondary { background: #f0ecfb; color: #4f36b5; }
+.printbtn  { background: #211b35; color: #fff; }
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+
+/* ---------- 4. Import / manual list / notices ---------- */
+.upload {
+  border: 1.5px dashed #b9acd9;
+  background: #faf8ff;
+  border-radius: 12px;
+  text-align: center;
+  padding: 20px 12px;
+  cursor: pointer;
+  display: block;
+}
+.upload:hover  { border-color: var(--purple); background: #f5f1ff; }
+.upload strong { display: block; margin: 6px 0 3px; }
+.upload small  { color: var(--muted); }
+
+input[type=file] { display: none; }
+
+.fileinfo {
+  font-size: 13px;
+  color: #4e3da1;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 10px;
+  min-height: 18px;
+}
+.status.error { color: #b42318; }
+.status.ok    { color: #24734a; }
+
+.notice {
+  background: #fff7e6;
+  border: 1px solid #f0d49b;
+  color: #805b13;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.manuallist {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f6fc;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.mitem span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mitem button {
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid #dcd6e8;
+  color: #b42318;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+
+/* ---------- 5. Preview panel ---------- */
+.preview {
+  position: sticky;
+  top: 12px;
+}
+
+.previewhead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.previewhead h2 { margin: 0; }
+
+.stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.stat {
+  background: #f8f6fc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.stat b {
+  display: block;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.exportbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.exportbar .lbl {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 650;
+  margin-right: 2px;
+}
+.exportbar button {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.exportnote {
+  font-size: 12px;
+  margin: -6px 0 14px;
+  min-height: 0;
+}
+
+.empty {
+  border: 1px dashed #d7d0e7;
+  border-radius: 12px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty .symbol { font-size: 34px; margin-bottom: 8px; }
+
+.footerhint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 15px;
+}
+
+
+/* ---------- 6. Label design ----------
+   Shared by the on-screen preview, A4 print and roll print.
+   Structure:
+     .slot            -> the space one label occupies on the page
+       .label         -> the label itself
+         .top         -> row: text block (.txt) + QR code (.qrbox)
+         .serial      -> serial number line
+         .barcodebox  -> Code128 barcode
+*/
+.labelgrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+.slot {
+  position: relative;
+  width: var(--sw);
+  height: var(--sh);
+  flex: none;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  background: #fff;
+}
+
+.label {
+  width: var(--lw);
+  height: var(--lh);
+  padding: var(--pad);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+}
+
+/* optional thin border */
+.bordered .label {
+  outline: .2mm solid #8d86a0;
+  outline-offset: -.2mm;
+}
+
+/* rotated label (roll mode, portrait) */
+.rot .label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  transform: translate(var(--lh), 0) rotate(90deg);
+}
+
+/* "PART NAME" caption (hidden on short labels) */
+.label .brand {
+  font-size: var(--f-brand);
+  letter-spacing: .12em;
+  color: #71668d;
+  text-transform: uppercase;
+  font-weight: 800;
+  margin-bottom: .8mm;
+  flex: none;
+}
+.compact .brand { display: none; }
+
+/* part name: max 2 lines (1 when compact) */
+.label .partname {
+  font-size: var(--f-name);
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 1mm;
+  flex: none;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.compact .partname { -webkit-line-clamp: 1; }
+
+/* part number / category rows */
+.label .info {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1.5mm;
+  font-size: var(--f-row);
+  line-height: 1.3;
+  flex: none;
+}
+.label .key { color: #555; white-space: nowrap; }
+.label .val {
+  font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* serial number line */
+.label .serial {
+  border-top: .2mm solid #bbb;
+  margin-top: 1mm;
+  padding-top: .8mm;
+  font-size: var(--f-name);
+  line-height: 1.15;
+  font-weight: 800;
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* top row: text on the left, QR on the right */
+.label .top { display: flex; gap: 1.5mm; flex: none; }
+.label .txt { flex: 1; min-width: 0; }
+
+.label .qrbox {
+  width: var(--qr);
+  height: var(--qr);
+  flex: none;
+}
+.label .qrbox svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* barcode fills the remaining height */
+.label .barcodebox {
+  flex: 1;
+  min-height: 3mm;
+  margin-top: .6mm;
+  display: flex;
+}
+.label .barcodebox svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.label .nobar {
+  font-size: 6pt;
+  color: #777;
+  margin: auto;
+  text-align: center;
+}
+
+
+/* ---------- 7. Responsive ---------- */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .preview { position: static; }
+  header h1 { font-size: 25px; }
+}
+
+
+/* ---------- 8. Print rules ---------- */
+@media print {
+  html, body { background: #fff; }
+
+  /* hide everything except the labels */
+  header, .sidebar, .previewhead, .stats, .exportbar,
+  .exportnote, .footerhint, .empty, .no-print {
+    display: none !important;
+  }
+
+  main {
+    display: block;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .panel {
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+  }
+  .preview { position: static; }
+
+  .bordered .label { outline-color: #444; }
+
+  /* roll mode: one label per page */
+  .roll .labelgrid { display: block; }
+  .roll .slot { page-break-after: always; break-after: page; }
+  .roll .slot:last-child { page-break-after: auto; break-after: auto; }
+}

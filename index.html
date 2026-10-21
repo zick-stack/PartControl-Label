@@ -1,596 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EPS Part Controller - Print Label</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-<style id="pageStyle"></style>
-<style>
-:root{--qr:17mm;--ink:#211b35;--muted:#6f6882;--purple:#6d4aff;--line:#e7e2f0;--bg:#f7f5fb;--white:#fff;
- --lw:63mm;--lh:38mm;--sw:63mm;--sh:38mm;--gap:1.5mm;--f-brand:5.5pt;--f-name:10pt;--f-row:7.5pt;--pad:2mm}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-header{background:linear-gradient(115deg,#251b45,#6345c7);color:#fff;padding:28px max(22px,calc((100% - 1180px)/2))}
-header .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.78;font-weight:700}
-header h1{margin:5px 0;font-size:30px}header p{margin:0;opacity:.82}
-main{max-width:1180px;margin:24px auto;padding:0 18px 40px;display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
-.sidebar{display:flex;flex-direction:column;gap:16px}
-.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 5px 20px #33215b08}
-h2{font-size:17px;margin:0 0 14px;display:flex;align-items:center}
-.step{display:inline-grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#eee9ff;color:#5c3be0;font-size:12px;font-weight:800;margin-right:8px;flex:none}
-.sub{font-size:12px;color:var(--muted);margin:-8px 0 12px}
-.upload{border:1.5px dashed #b9acd9;background:#faf8ff;border-radius:12px;text-align:center;padding:20px 12px;cursor:pointer;display:block}
-.upload:hover{border-color:var(--purple);background:#f5f1ff}.upload strong{display:block;margin:6px 0 3px}.upload small{color:var(--muted)}
-input[type=file]{display:none}
-.fileinfo{font-size:13px;color:#4e3da1;margin-top:10px;overflow-wrap:anywhere}
-.field{margin-top:13px}.field label{display:block;font-weight:650;font-size:13px;margin-bottom:5px}
-.field select,.field input[type=text],.field input[type=number]{width:100%;border:1px solid #dcd6e8;border-radius:9px;padding:9px 11px;background:#fff;color:var(--ink);font:inherit}
-.field select:disabled{background:#f6f4fa;color:#9a93ad}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.hint{font-size:12px;color:var(--muted);margin-top:5px}
-.check{display:flex;gap:8px;align-items:center;font-size:13px;margin-top:13px}
-button{border:0;border-radius:10px;padding:11px 14px;font:inherit;font-weight:750;cursor:pointer}
-button:disabled{opacity:.45;cursor:not-allowed}
-.primary{background:var(--purple);color:#fff;width:100%;margin-top:16px}.primary:hover:not(:disabled){background:#5636d7}
-.secondary{background:#f0ecfb;color:#4f36b5}.printbtn{background:#211b35;color:#fff}
-.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.status{font-size:13px;color:var(--muted);margin-top:10px;min-height:18px}.status.error{color:#b42318}.status.ok{color:#24734a}
-.notice{background:#fff7e6;border:1px solid #f0d49b;color:#805b13;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:12px}
-.manuallist{margin-top:12px;display:flex;flex-direction:column;gap:6px}
-.mitem{display:flex;align-items:center;gap:8px;background:#f8f6fc;border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12px}
-.mitem span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mitem button{padding:2px 8px;background:#fff;border:1px solid #dcd6e8;color:#b42318;font-size:14px;line-height:1.2}
-.previewhead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-.previewhead h2{margin:0}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.stat{background:#f8f6fc;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;color:var(--muted)}.stat b{display:block;color:var(--ink);font-size:18px}
-.empty{border:1px dashed #d7d0e7;border-radius:12px;padding:48px 20px;text-align:center;color:var(--muted)}.empty .symbol{font-size:34px;margin-bottom:8px}
-.footerhint{font-size:12px;color:var(--muted);margin-top:15px}
-.preview{position:sticky;top:12px}
-.exportbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.exportbar .lbl{font-size:12px;color:var(--muted);font-weight:650;margin-right:2px}
-.exportbar button{padding:8px 12px;font-size:13px}.exportnote{font-size:12px;margin:-6px 0 14px;min-height:0}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EPS Part Controller - Print Label</title>
 
-/* ---------- Label (shared by preview, A4 print and roll print) ---------- */
-.labelgrid{display:flex;flex-wrap:wrap;gap:var(--gap)}
-.slot{position:relative;width:var(--sw);height:var(--sh);flex:none;break-inside:avoid;page-break-inside:avoid;background:#fff}
-.label{width:var(--lw);height:var(--lh);padding:var(--pad);display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000}
-.bordered .label{outline:.2mm solid #8d86a0;outline-offset:-.2mm}
-.rot .label{position:absolute;left:0;top:0;transform-origin:0 0;transform:translate(var(--lh),0) rotate(90deg)}
-.label .brand{font-size:var(--f-brand);letter-spacing:.12em;color:#71668d;text-transform:uppercase;font-weight:800;margin-bottom:.8mm;flex:none}
-.compact .brand{display:none}
-.label .partname{font-size:var(--f-name);font-weight:800;line-height:1.15;margin-bottom:1mm;flex:none;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
-.compact .partname{-webkit-line-clamp:1}
-.label .info{display:grid;grid-template-columns:max-content 1fr;column-gap:1.5mm;font-size:var(--f-row);line-height:1.3;flex:none}
-.label .key{color:#555;white-space:nowrap}.label .val{font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.label .serial{border-top:.2mm solid #bbb;margin-top:1mm;padding-top:.8mm;font-size:var(--f-name);line-height:1.15;font-weight:800;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.label .top{display:flex;gap:1.5mm;flex:none}.label .txt{flex:1;min-width:0}
-.label .qrbox{width:var(--qr);height:var(--qr);flex:none}.label .qrbox svg{width:100%;height:100%;display:block}
-.label .barcodebox{flex:1;min-height:3mm;margin-top:.6mm;display:flex}
-.label .barcodebox svg{width:100%;height:100%;display:block}
-.label .nobar{font-size:6pt;color:#777;margin:auto;text-align:center}
+  <!-- Third-party libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 
-@media(max-width:900px){main{grid-template-columns:1fr}.preview{position:static}header h1{font-size:25px}}
-@media print{
- html,body{background:#fff}
- header,.sidebar,.previewhead,.stats,.exportbar,.exportnote,.footerhint,.empty,.no-print{display:none!important}
- main{display:block;max-width:none;margin:0;padding:0}
- .panel{border:0;box-shadow:none;padding:0;border-radius:0}.preview{position:static}
- .bordered .label{outline-color:#444}
- .roll .labelgrid{display:block}
- .roll .slot{page-break-after:always;break-after:page}
- .roll .slot:last-child{page-break-after:auto;break-after:auto}
-}
-</style>
+  <!-- @page rule is injected here by app.js (follows the print settings) -->
+  <style id="pageStyle"></style>
+
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-<header><div class="eyebrow">Part Controller</div><h1>Print-Label</h1><p>Kalo mau bikin label nya banyak upload pake file excel, kalo cuma 1 bisa bikin manual di section ke 2.</p></header>
-<main>
-<div class="sidebar no-print">
 
-<!-- 1. BULK IMPORT -->
-<section class="panel" id="secBulk">
-  <h2><span class="step">1</span>Multiple import labels</h2>
-  <div class="sub">Upload an Excel or CSV file to generate many labels at once.</div>
-  <label class="upload" for="excelFile"><span style="font-size:26px">⇧</span><strong>Choose an Excel or CSV file</strong><small>.xlsx, .xls or .csv</small></label>
-  <input id="excelFile" type="file" accept=".xlsx,.xls,.csv">
-  <div id="fileinfo" class="fileinfo">No file selected yet.</div>
-  <div class="two">
-    <div class="field"><label for="sheet">Worksheet</label><select id="sheet" disabled><option>Upload a file first</option></select></div>
-    <div class="field"><label for="headerRow">Header row</label><select id="headerRow" disabled><option value="0">Row 1</option></select></div>
-  </div>
-  <div class="hint">Columns are detected automatically. Adjust below if needed.</div>
-  <div class="two">
-    <div class="field"><label for="partName">Part name</label><select id="partName" disabled></select></div>
-    <div class="field"><label for="partNumber">Part number</label><select id="partNumber" disabled></select></div>
-    <div class="field"><label for="category">Category</label><select id="category" disabled></select></div>
-    <div class="field"><label for="serialNumber">Serial number</label><select id="serialNumber" disabled></select></div>
-  </div>
-  <div class="two">
-    <div class="field"><label for="bulkCopies">Copies per item</label><input id="bulkCopies" type="number" min="1" max="100" value="1"></div>
-    <div class="field"><label for="copiesCol">Copies column <span style="font-weight:400;color:var(--muted)">(optional)</span></label><select id="copiesCol" disabled></select></div>
-  </div>
-  <button id="importBtn" class="primary" disabled>Import to label preview</button>
-  <div id="bulkStatus" class="status">Upload a file to get started.</div>
-</section>
+  <!-- ===================== HEADER ===================== -->
+  <header>
+    <div class="eyebrow">Part Controller</div>
+    <h1>Print-Label</h1>
+    <p>Kalo mau bikin label nya banyak upload pake file excel, kalo cuma 1 bisa bikin manual di section ke 2.</p>
+  </header>
 
-<!-- 2. MANUAL -->
-<section class="panel" id="secManual">
-  <h2><span class="step">2</span>Manual label generator</h2>
-  <div class="sub">Type the details directly, no file needed.</div>
-  <div class="field" style="margin-top:0"><label for="mName">Part name</label><input id="mName" type="text" autocomplete="off"></div>
-  <div class="two">
-    <div class="field"><label for="mNumber">Part number</label><input id="mNumber" type="text" autocomplete="off"></div>
-    <div class="field"><label for="mCategory">Category</label><input id="mCategory" type="text" autocomplete="off"></div>
-  </div>
-  <div class="two">
-    <div class="field"><label for="mSerial">Serial number</label><input id="mSerial" type="text" autocomplete="off"></div>
-    <div class="field"><label for="mCopies">Number of copies</label><input id="mCopies" type="number" min="1" max="100" value="1"></div>
-  </div>
-  <button id="addManual" class="primary">Add label to preview</button>
-  <div id="manualStatus" class="status"></div>
-  <div id="manualList" class="manuallist"></div>
-</section>
+  <main>
 
-<!-- 3. SETTINGS -->
-<section class="panel" id="secSettings">
-  <h2><span class="step">3</span>Label &amp; print settings</h2>
-  <div class="sub">Applies to both bulk and manual labels.</div>
-  <div class="field" style="margin-top:0"><label for="size">Label size</label>
-    <select id="size">
-      <option value="50x25">50 × 25 mm — Small parts</option>
-      <option value="50x30">50 × 30 mm — Compact labels</option>
-      <option value="63x38" selected>63 × 38 mm — Standard labels</option>
-      <option value="70x40">70 × 40 mm — General spare parts</option>
-      <option value="100x50">100 × 50 mm — Large inventory labels</option>
-      <option value="custom">Custom size…</option>
-    </select></div>
-  <div class="two" id="customSize" style="display:none">
-    <div class="field"><label for="cw">Width (mm)</label><input id="cw" type="number" min="20" max="200" value="60"></div>
-    <div class="field"><label for="ch">Height (mm)</label><input id="ch" type="number" min="15" max="200" value="40"></div>
-  </div>
-  <div class="two">
-    <div class="field"><label for="orient">Page layout</label>
-      <select id="orient"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
-    <div class="field"><label for="mode">Printer mode</label>
-      <select id="mode"><option value="a4">A4 sticker sheet</option><option value="roll">Continuous label roll</option></select></div>
-  </div>
-  <div class="two" id="a4opts">
-    <div class="field"><label for="margin">Page margin (mm)</label><input id="margin" type="number" min="0" max="30" step="0.5" value="7"></div>
-    <div class="field"><label for="gap">Gap between labels (mm)</label><input id="gap" type="number" min="0" max="20" step="0.5" value="1.5"></div>
-  </div>
-  <label class="check"><input type="checkbox" id="border" checked> Print a thin border around each label</label>
-  <div class="notice" id="printerNotice"></div>
-</section>
-</div>
+    <!-- ===================== SIDEBAR (inputs) ===================== -->
+    <div class="sidebar no-print">
 
-<!-- SHARED PREVIEW + SINGLE PRINT -->
-<section class="panel preview">
-  <div class="previewhead"><h2>Label preview</h2>
-    <div class="actions no-print"><button id="clear" class="secondary" disabled>Clear all</button><button id="print" class="printbtn" disabled>Print labels ↗</button></div></div>
-  <div class="stats">
-    <div class="stat">Items<b id="itemCount">0</b></div>
-    <div class="stat">Labels to print<b id="labelCount">0</b></div>
-    <div class="stat">Label size<b id="sizeStat" style="font-size:15px;padding-top:3px">63 × 38 mm</b></div>
-    <div class="stat">Pages (A4)<b id="pageStat">–</b></div>
-  </div>
-  <div class="exportbar no-print"><span class="lbl">Save as</span>
-    <button id="savePdf" class="secondary" disabled>PDF</button><button id="saveXlsx" class="secondary" disabled>Excel</button><button id="saveDocx" class="secondary" disabled>Word</button></div>
-  <div id="exportStatus" class="status exportnote no-print"></div>
-  <div id="preview"></div>
-  <div class="footerhint">Copyright &#169; EPS Part Controller.</div>
-</section>
-</main>
+      <!-- 1. BULK IMPORT -->
+      <section class="panel" id="secBulk">
+        <h2><span class="step">1</span>Multiple import labels</h2>
+        <div class="sub">Upload an Excel or CSV file to generate many labels at once.</div>
 
-<script>
-const $=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const norm=v=>String(v??'').trim().toLowerCase().replace(/[_\-.]+/g,' ').replace(/\s+/g,' ');
-const A4={portrait:[210,297],landscape:[297,210]};
+        <label class="upload" for="excelFile">
+          <span style="font-size:26px">⇧</span>
+          <strong>Choose an Excel or CSV file</strong>
+          <small>.xlsx, .xls or .csv</small>
+        </label>
+        <input id="excelFile" type="file" accept=".xlsx,.xls,.csv">
+        <div id="fileinfo" class="fileinfo">No file selected yet.</div>
 
-/* ---------- state ---------- */
-let workbook=null,rawRows=[],headers=[],bulkItems=[],manualItems=[],bulkActive=false;
+        <div class="two">
+          <div class="field">
+            <label for="sheet">Worksheet</label>
+            <select id="sheet" disabled><option>Upload a file first</option></select>
+          </div>
+          <div class="field">
+            <label for="headerRow">Header row</label>
+            <select id="headerRow" disabled><option value="0">Row 1</option></select>
+          </div>
+        </div>
 
-/* ---------- column detection ---------- */
-const FIELDS={
- partName:{exact:['part name','partname','name','nama part','nama barang','item name','item','description'],fuzzy:['part name','nama part','nama barang','item name','description','deskripsi']},
- partNumber:{exact:['part number','part no','partnumber','pn','p n','part code','kode part','number'],fuzzy:['part number','part no','part code','kode part','p/n']},
- category:{exact:['category','kategori','type','jenis'],fuzzy:['category','kategori']},
- serialNumber:{exact:['serial number','serial no','serialnumber','serial','sn','s n'],fuzzy:['serial','s/n']},
- copiesCol:{exact:['copies','copy','qty','quantity','jumlah','qty label','labels'],fuzzy:['copies','quantity','qty','jumlah']}
-};
-const ALL_ALIASES=Object.values(FIELDS).flatMap(f=>f.exact);
-function detectHeaderRow(rows){
- let best=-1,bestScore=0,firstNonEmpty=-1;
- rows.slice(0,30).forEach((r,i)=>{
-  if(firstNonEmpty<0&&r.some(c=>String(c??'').trim()!==''))firstNonEmpty=i;
-  const s=r.filter(c=>ALL_ALIASES.includes(norm(c))).length;
-  if(s>bestScore){bestScore=s;best=i}
- });
- return best>=0?best:firstNonEmpty;
-}
-function autoMap(){
- const taken=new Set();
- Object.keys(FIELDS).forEach(id=>{
-  const sel=$(id),nh=headers.map(norm);
-  let idx=nh.findIndex((h,i)=>!taken.has(i)&&FIELDS[id].exact.includes(h));
-  if(idx<0)idx=nh.findIndex((h,i)=>!taken.has(i)&&FIELDS[id].fuzzy.some(a=>h.includes(a)));
-  if(idx>=0){sel.value=String(idx);taken.add(idx)}
- });
-}
+        <div class="hint">Columns are detected automatically. Adjust below if needed.</div>
 
-/* ---------- bulk import ---------- */
-function setBulkStatus(t,k=''){$('bulkStatus').textContent=t;$('bulkStatus').className='status '+k}
-$('excelFile').addEventListener('change',async e=>{
- const file=e.target.files[0];if(!file)return;
- try{
-  workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
-  $('fileinfo').textContent=`${file.name} · ${(file.size/1024).toFixed(1)} KB`;
-  $('sheet').innerHTML=workbook.SheetNames.map(s=>`<option>${esc(s)}</option>`).join('');$('sheet').disabled=false;
-  loadSheet(workbook.SheetNames[0]);
- }catch(err){setBulkStatus('Could not read this file. Please check that it is a valid Excel or CSV file.','error')}
-});
-$('sheet').addEventListener('change',()=>loadSheet($('sheet').value));
-function loadSheet(name){
- rawRows=XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:false});
- const h=detectHeaderRow(rawRows);
- if(h<0){setBulkStatus('This worksheet appears to be empty.','error');$('importBtn').disabled=true;return}
- $('headerRow').innerHTML=rawRows.slice(0,Math.min(rawRows.length,30)).map((r,i)=>`<option value="${i}">Row ${i+1}: ${esc(r.filter(x=>String(x).trim()).slice(0,3).join(' · ').slice(0,40)||'(blank)')}</option>`).join('');
- $('headerRow').disabled=false;$('headerRow').value=String(h);
- buildMapping();
- setBulkStatus('File loaded. Columns were detected automatically; check them, then import.','ok');
-}
-$('headerRow').addEventListener('change',()=>{buildMapping();if(bulkActive)importBulk()});
-function buildMapping(){
- headers=(rawRows[Number($('headerRow').value)||0]||[]).map((h,i)=>String(h??'').trim()||`Column ${i+1}`);
- Object.keys(FIELDS).forEach(id=>{
-  const optional=id==='copiesCol'?'— Use "Copies per item" —':'— None —';
-  $(id).innerHTML=`<option value="">${optional}</option>`+headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join('');
-  $(id).disabled=false;
- });
- autoMap();$('importBtn').disabled=false;
-}
-['partName','partNumber','category','serialNumber','copiesCol','bulkCopies'].forEach(id=>$(id).addEventListener('change',()=>{if(bulkActive)importBulk()}));
-const clampCopies=v=>Math.max(1,Math.min(100,parseInt(v)||1));
-function importBulk(){
- if(!rawRows.length)return;
- const cols={};
- for(const id of ['partName','partNumber','category','serialNumber','copiesCol'])cols[id]=$(id).value===''?-1:Number($(id).value);
- if(['partName','partNumber','category','serialNumber'].every(k=>cols[k]<0)){setBulkStatus('Please map at least one column.','error');return}
- const get=(r,i)=>i<0?'':String(r[i]??'').trim();
- const def=clampCopies($('bulkCopies').value);
- bulkItems=rawRows.slice((Number($('headerRow').value)||0)+1).filter(r=>r.some(v=>String(v??'').trim()!==''))
-  .map(r=>({partName:get(r,cols.partName),partNumber:get(r,cols.partNumber),category:get(r,cols.category),serialNumber:get(r,cols.serialNumber),
-   copies:cols.copiesCol>=0?clampCopies(get(r,cols.copiesCol)):def}))
-  .filter(r=>r.partName||r.partNumber||r.category||r.serialNumber);
- if(!bulkItems.length){setBulkStatus('No data rows found below the header row.','error');bulkActive=false;render();return}
- bulkActive=true;
- const missing=cols.serialNumber<0?' No serial column mapped, so no barcodes will be made.':'';
- setBulkStatus(`Imported ${bulkItems.length} item(s).${missing}`,missing?'error':'ok');
- render();
-}
-$('importBtn').addEventListener('click',importBulk);
+        <div class="two">
+          <div class="field"><label for="partName">Part name</label><select id="partName" disabled></select></div>
+          <div class="field"><label for="partNumber">Part number</label><select id="partNumber" disabled></select></div>
+          <div class="field"><label for="category">Category</label><select id="category" disabled></select></div>
+          <div class="field"><label for="serialNumber">Serial number</label><select id="serialNumber" disabled></select></div>
+        </div>
 
-/* ---------- manual ---------- */
-function renderManualList(){
- $('manualList').innerHTML=manualItems.map((m,i)=>`<div class="mitem"><span><b>${esc(m.partName||m.partNumber||m.serialNumber||'Label')}</b>${m.serialNumber?' · '+esc(m.serialNumber):''} · ×${m.copies}</span><button data-i="${i}" title="Remove">×</button></div>`).join('');
-}
-$('manualList').addEventListener('click',e=>{
- const b=e.target.closest('button[data-i]');if(!b)return;
- manualItems.splice(Number(b.dataset.i),1);renderManualList();render();
-});
-function addManual(){
- const it={partName:$('mName').value.trim(),partNumber:$('mNumber').value.trim(),category:$('mCategory').value.trim(),serialNumber:$('mSerial').value.trim(),copies:clampCopies($('mCopies').value)};
- const st=$('manualStatus');
- if(!(it.partName||it.partNumber||it.category||it.serialNumber)){st.textContent='Enter at least one field.';st.className='status error';return}
- manualItems.push(it);
- ['mName','mNumber','mCategory','mSerial'].forEach(id=>$(id).value='');$('mCopies').value=1;$('mName').focus();
- st.textContent=`Added. ${manualItems.length} manual item(s) in the preview.`;st.className='status ok';
- renderManualList();render();
-}
-$('addManual').addEventListener('click',addManual);
-['mName','mNumber','mCategory','mSerial','mCopies'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addManual()}}));
+        <div class="two">
+          <div class="field">
+            <label for="bulkCopies">Copies per item</label>
+            <input id="bulkCopies" type="number" min="1" max="100" value="1">
+          </div>
+          <div class="field">
+            <label for="copiesCol">Copies column <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+            <select id="copiesCol" disabled></select>
+          </div>
+        </div>
 
-/* ---------- settings ---------- */
-function getSize(){
- if($('size').value==='custom'){
-  const w=Math.max(20,Math.min(200,parseFloat($('cw').value)||60)),h=Math.max(15,Math.min(200,parseFloat($('ch').value)||40));return[w,h];
- }
- return $('size').value.split('x').map(Number);
-}
-function applySettings(){
- const [w,h]=getSize(),mode=$('mode').value,orient=$('orient').value;
- const margin=Math.max(0,parseFloat($('margin').value)||0),gap=Math.max(0,parseFloat($('gap').value)||0);
- const rotate=mode==='roll'&&orient==='portrait'; // roll: portrait = label turned 90° so the page is H×W
- const root=document.documentElement.style;
- root.setProperty('--lw',w+'mm');root.setProperty('--lh',h+'mm');
- root.setProperty('--sw',(rotate?h:w)+'mm');root.setProperty('--sh',(rotate?w:h)+'mm');
- root.setProperty('--gap',gap+'mm');
- const u=Math.max(Math.min(h/38,w/63),.6);
- root.setProperty('--f-brand',Math.max(7*u,5.5).toFixed(2)+'pt');
- root.setProperty('--f-name',Math.max(10*u,8).toFixed(2)+'pt');
- root.setProperty('--f-row',Math.max(7.5*u,6).toFixed(2)+'pt');
- root.setProperty('--pad',Math.max(2*u,1.4).toFixed(2)+'mm');
- root.setProperty('--qr',qrSize(w,h,Math.max(2*u,1.4)).toFixed(2)+'mm');
- // page rule: real @page, injected so it follows the settings
- $('pageStyle').textContent=mode==='roll'
-  ?`@page{size:${rotate?h:w}mm ${rotate?w:h}mm;margin:0}`
-  :`@page{size:A4 ${orient};margin:${margin}mm}`;
- document.body.classList.toggle('roll',mode==='roll');
- $('customSize').style.display=$('size').value==='custom'?'grid':'none';
- $('a4opts').style.display=mode==='a4'?'grid':'none';
- $('orient').title=mode==='a4'?'Sets the A4 page orientation':'Landscape = label printed as designed; Portrait = label turned 90°';
- $('printerNotice').textContent=mode==='a4'
-  ?'A regular A4 printer needs compatible A4 sticker sheets. Page layout sets the A4 orientation; the label size is set separately above.'
-  :'Roll mode prints one label per page at the exact label size. This needs a printer that supports roll media; a regular A4 printer cannot feed a label roll. Portrait turns each label 90° on the page.';
- $('sizeStat').textContent=`${w} × ${h} mm`;
- return {w,h,mode,orient,margin,gap,compact:h<32};
-}
+        <button id="importBtn" class="primary" disabled>Import to label preview</button>
+        <div id="bulkStatus" class="status">Upload a file to get started.</div>
+      </section>
 
-/* ---------- shared preview ---------- */
-function labelHtml(r,i){
- return `<div class="slot"><article class="label"><div class="top"><div class="txt"><div class="brand">Part Name</div><div class="partname">${esc(r.partName||'—')}</div>`+
- `<div class="info"><span class="key">Part number:</span><span class="val">${esc(r.partNumber||'—')}</span><span class="key">Category:</span><span class="val">${esc(r.category||'—')}</span></div></div>`+
- `${r.serialNumber?`<div class="qrbox" data-i="${i}"></div>`:''}</div>`+
- `<div class="serial">Serial number: ${esc(r.serialNumber||'—')}</div><div class="barcodebox" data-i="${i}"></div></article></div>`;
-}
-function drawBarcode(box,value){
- if(!value){box.innerHTML='<div class="nobar">No serial number, barcode skipped</div>';return}
- try{
-  if(typeof JsBarcode==='undefined')throw new Error('lib');
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  JsBarcode(svg,value,{format:'CODE128',displayValue:false,margin:0,height:40,width:2});
-  const w=svg.getAttribute('width'),h=svg.getAttribute('height');
-  if(!svg.getAttribute('viewBox'))svg.setAttribute('viewBox',`0 0 ${parseFloat(w)} ${parseFloat(h)}`);
-  svg.removeAttribute('width');svg.removeAttribute('height');
-  svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('role','img');svg.setAttribute('aria-label','Barcode for serial number '+value);
-  box.appendChild(svg);
- }catch(e){box.innerHTML='<div class="nobar" style="color:#b42318">Barcode unavailable for this value</div>'}
-}
-function drawQr(box,value){ // QR code in the top-right corner
- try{
-  const q=qrOf(value),n=q.getModuleCount();let d='';
-  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;
-  box.innerHTML=`<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" role="img" aria-label="QR code for serial number ${esc(value)}"><path d="${d}" fill="#000"/></svg>`;
- }catch(e){box.remove()}
-}
-function render(){
- const s=applySettings();
- const items=[...bulkItems,...manualItems];
- const all=[];items.forEach(r=>{for(let i=0;i<r.copies;i++)all.push(r)});
- $('itemCount').textContent=items.length;$('labelCount').textContent=all.length;
- $('print').disabled=$('clear').disabled=!all.length;['savePdf','saveXlsx','saveDocx'].forEach(id=>$(id).disabled=!all.length);
- const pv=$('preview');
- pv.className=(s.compact?'compact ':'')+($('border').checked?'bordered':'');
- if(!all.length){
-  $('pageStat').textContent='–';
-  pv.innerHTML='<div class="empty"><div class="symbol">▤</div><strong>Your labels will appear here</strong><div style="margin-top:5px">Import a spreadsheet or add a label manually.</div></div>';
-  return;
- }
- if(s.mode==='a4'){
-  const [pw,ph]=A4[s.orient],uw=pw-2*s.margin,uh=ph-2*s.margin;
-  const cols=Math.max(1,Math.floor((uw+s.gap)/(s.w+s.gap))),rows=Math.max(1,Math.floor((uh+s.gap)/(s.h+s.gap)));
-  const fits=s.w<=uw&&s.h<=uh;
-  $('pageStat').textContent=fits?Math.ceil(all.length/(cols*rows)):'⚠';
- }else $('pageStat').textContent='n/a';
- pv.innerHTML='<div class="labelgrid">'+all.map(labelHtml).join('')+'</div>';
- pv.querySelectorAll('.barcodebox').forEach(b=>drawBarcode(b,all[Number(b.dataset.i)].serialNumber));
- pv.querySelectorAll('.qrbox').forEach(b=>drawQr(b,all[Number(b.dataset.i)].serialNumber));
-}
-['size','cw','ch','orient','mode','margin','gap','border'].forEach(id=>$(id).addEventListener('input',render));
+      <!-- 2. MANUAL LABEL -->
+      <section class="panel" id="secManual">
+        <h2><span class="step">2</span>Manual label generator</h2>
+        <div class="sub">Type the details directly, no file needed.</div>
 
+        <div class="field" style="margin-top:0">
+          <label for="mName">Part name</label>
+          <input id="mName" type="text" autocomplete="off">
+        </div>
 
-/* ================= SAVE AS PDF / EXCEL / WORD ================= */
-const MM=0.352778; // 1 pt in mm
-const LIBS={
- jspdf:{url:'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',get:()=>window.jspdf&&window.jspdf.jsPDF},
- docx:{url:'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',get:()=>window.docx}
-};
-const libP={};
-function loadLib(k){
- if(LIBS[k].get())return Promise.resolve();
- return libP[k]||(libP[k]=new Promise((res,rej)=>{
-  const sc=document.createElement('script');sc.src=LIBS[k].url;sc.onload=res;sc.onerror=()=>{delete libP[k];rej(new Error('Could not load the '+k+' library. Check your internet connection.'))};document.head.appendChild(sc);
- }));
-}
-function setExp(t,k=''){$('exportStatus').textContent=t;$('exportStatus').className='status exportnote no-print '+k}
-function expand(){const items=[...bulkItems,...manualItems],all=[];items.forEach(r=>{for(let i=0;i<r.copies;i++)all.push(r)});return{items,all}}
-const qrSize=(w,h,pad)=>Math.min((w-2*pad)*.34,h*.45); // QR side in mm, top-right corner
-function metrics(s){const u=Math.max(Math.min(s.h/38,s.w/63),.6),pad=Math.max(2*u,1.4);return{u,pad,qr:qrSize(s.w,s.h,pad),brand:Math.max(7*u,5.5),name:Math.max(10*u,8),row:Math.max(7.5*u,6),compact:s.h<32}}
-function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`}
-function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
-const L1=t=>String(t??'').replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/\u2026/g,'...').replace(/[^\x00-\xFF]/g,'?'); // PDF standard fonts only cover Latin-1
-function pageFit(s){ // A4 grid; returns null if a label is bigger than the usable page
- const [pw,ph]=A4[s.orient],uw=pw-2*s.margin,uh=ph-2*s.margin;
- if(s.w>uw||s.h>uh)return null;
- return{pw,ph,uw,uh,cols:Math.max(1,Math.floor((uw+s.gap)/(s.w+s.gap))),rows:Math.max(1,Math.floor((uh+s.gap)/(s.h+s.gap)))};
-}
-const tooBig='This label size does not fit the A4 page with the current margin. Reduce the margin or choose a smaller label.';
-const noteRot='Portrait roll: PDF turns the label 90°; Word keeps it upright on a landscape page.';
+        <div class="two">
+          <div class="field"><label for="mNumber">Part number</label><input id="mNumber" type="text" autocomplete="off"></div>
+          <div class="field"><label for="mCategory">Category</label><input id="mCategory" type="text" autocomplete="off"></div>
+        </div>
 
-/* ---- barcode helpers ---- */
-const qrCache={};
-function qrOf(v){ // QR code (UTF-8, medium error correction) for the serial number
- if(qrCache[v])return qrCache[v];
- if(typeof qrcode==='undefined')throw new Error('lib');
- qrcode.stringToBytes=qrcode.stringToBytesFuncs['UTF-8'];
- const q=qrcode(0,'M');q.addData(String(v));q.make();return qrCache[v]=q;
-}
-const qrPngCache={};
-function qrPng(v){
- if(qrPngCache[v])return qrPngCache[v];
- const q=qrOf(v),n=q.getModuleCount(),k=8,c=document.createElement('canvas');c.width=c.height=n*k;
- const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,n*k,n*k);g.fillStyle='#000';
- for(let r=0;r<n;r++)for(let cc=0;cc<n;cc++)if(q.isDark(r,cc))g.fillRect(cc*k,r*k,k,k);
- const b=atob(c.toDataURL('image/png').split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
- return qrPngCache[v]=u;
-}
-function barBits(v){const o={};JsBarcode(o,v,{format:'CODE128'});return o.encodings.map(e=>e.data).join('')}
-const pngCache={};
-function barPng(v){
- if(pngCache[v])return pngCache[v];
- const c=document.createElement('canvas');JsBarcode(c,v,{format:'CODE128',displayValue:false,margin:0,height:60,width:3});
- const b=atob(c.toDataURL('image/png').split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
- return pngCache[v]=u;
-}
+        <div class="two">
+          <div class="field"><label for="mSerial">Serial number</label><input id="mSerial" type="text" autocomplete="off"></div>
+          <div class="field"><label for="mCopies">Number of copies</label><input id="mCopies" type="number" min="1" max="100" value="1"></div>
+        </div>
 
-/* ================= PDF (vector text + vector barcode) ================= */
-function pdfLabel(doc,x0,y0,r,s,m,rot){
- const W=s.w,H=s.h,iw=W-2*m.pad;
- const T=(t,lx,ly)=>{const px=rot?x0+H-ly:x0+lx,py=rot?y0+lx:y0+ly;rot?doc.text(t,px,py,{angle:-90}):doc.text(t,px,py)};
- const R=(lx,ly,w,h,st)=>rot?doc.rect(x0+H-ly-h,y0+lx,h,w,st):doc.rect(x0+lx,y0+ly,w,h,st);
- const fit=(t,max)=>{t=L1(t);if(doc.getTextWidth(t)<=max)return t;while(t.length>1&&doc.getTextWidth(t+'...')>max)t=t.slice(0,-1);return t+'...'};
- let y=m.pad,qs=0;const code=r.serialNumber;
- if(code)try{ // QR code, top-right corner
-  const q=qrOf(code),n=q.getModuleCount(),md=m.qr/n,qx=m.pad+iw-m.qr;doc.setFillColor(0);
-  for(let rr=0;rr<n;rr++)for(let c=0;c<n;){if(q.isDark(rr,c)){let j=c;while(j<n&&q.isDark(rr,j))j++;R(qx+c*md,y+rr*md,(j-c)*md,md,'F');c=j}else c++}
-  qs=m.qr;
- }catch(e){}
- const tw=qs?iw-qs-1.5:iw; // text width beside the QR code
- doc.setFont('helvetica','bold');
- if(!m.compact){const sz=m.brand*MM;doc.setFontSize(m.brand);doc.setTextColor(113,102,141);T('PART NAME',m.pad,y+sz*.8);y+=sz*1.15+.8}
- { // part name, max 2 lines (1 when compact)
-  const sz=m.name*MM,max=m.compact?1:2;doc.setFontSize(m.name);doc.setTextColor(0);
-  let lines=doc.splitTextToSize(L1(r.partName||'—'),tw);
-  if(lines.length>max){lines=lines.slice(0,max);lines[max-1]=fit(lines[max-1]+'...',tw)}
-  lines.forEach((ln,i)=>T(ln,m.pad,y+sz*.85+i*sz*1.15));y+=lines.length*sz*1.15+1;
- }
- { // info rows
-  const sz=m.row*MM;doc.setFontSize(m.row);doc.setFont('helvetica','normal');
-  const keyW=Math.max(doc.getTextWidth('Part number:'),doc.getTextWidth('Category:'))+1.5;
-  [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
-   doc.setFont('helvetica','normal');doc.setTextColor(85);T(k,m.pad,y+sz*.9);
-   doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit(v||'—',tw-keyW),m.pad+keyW,y+sz*.9);y+=sz*1.3;
-  });
-  y=Math.max(y,m.pad+qs)+1;doc.setFillColor(187);R(m.pad,y,iw,.2,'F');y+=1;
-  const ss=m.name*MM;doc.setFontSize(m.name);doc.setFont('helvetica','bold');doc.setTextColor(0);T(fit('Serial number: '+(r.serialNumber||'—'),iw),m.pad,y+ss*.85);y+=ss*1.15+.6;
- }
- const bh=Math.max(2,H-m.pad-y);
- if(code){
-  try{const bits=barBits(code),mw=iw/bits.length;doc.setFillColor(0);
-   for(let i=0;i<bits.length;){if(bits[i]==='1'){let j=i;while(j<bits.length&&bits[j]==='1')j++;R(m.pad+i*mw,y,(j-i)*mw,bh,'F');i=j}else i++}
-  }catch(e){doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(180,35,24);T('Barcode unavailable for this value',m.pad,y+3)}
- }else{doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(119);T('No serial number, barcode skipped',m.pad,y+3)}
- if($('border').checked){doc.setDrawColor(68);doc.setLineWidth(.2);R(.1,.1,W-.2,H-.2,'S')}
-}
-async function exportPDF(){
- const s=applySettings(),{all}=expand();if(!all.length)return;
- await loadLib('jspdf');const {jsPDF}=window.jspdf,m=metrics(s),roll=s.mode==='roll';
- let doc;
- if(roll){const rot=s.orient==='portrait',pw=rot?s.h:s.w,ph=rot?s.w:s.h;
-  doc=new jsPDF({unit:'mm',format:[pw,ph],orientation:pw>ph?'landscape':'portrait'});
-  all.forEach((r,i)=>{if(i)doc.addPage([pw,ph],pw>ph?'landscape':'portrait');pdfLabel(doc,0,0,r,s,m,rot)});
- }else{
-  const f=pageFit(s);if(!f)throw new Error(tooBig);
-  doc=new jsPDF({unit:'mm',format:'a4',orientation:s.orient});const per=f.cols*f.rows;
-  all.forEach((r,i)=>{if(i&&i%per===0)doc.addPage('a4',s.orient);const k=i%per;
-   pdfLabel(doc,s.margin+(k%f.cols)*(s.w+s.gap),s.margin+Math.floor(k/f.cols)*(s.h+s.gap),r,s,m,false)});
- }
- doc.save(`labels-${stamp()}.pdf`);
- setExp(`PDF saved: ${all.length} label(s), ${doc.getNumberOfPages()} page(s). `+(roll&&s.orient==='portrait'?noteRot:''),'ok');
-}
+        <button id="addManual" class="primary">Add label to preview</button>
+        <div id="manualStatus" class="status"></div>
+        <div id="manualList" class="manuallist"></div>
+      </section>
 
-/* ================= EXCEL (data list: re-importable) ================= */
-function exportXLSX(){
- const {items}=expand();if(!items.length)return;
- const rows=items.map(r=>({'Part Name':r.partName,'Part Number':r.partNumber,'Category':r.category,'Serial Number':r.serialNumber,'Copies':r.copies}));
- const ws=XLSX.utils.json_to_sheet(rows,{header:['Part Name','Part Number','Category','Serial Number','Copies']});
- ws['!cols']=[{wch:32},{wch:20},{wch:18},{wch:22},{wch:8}];
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Labels');
- XLSX.writeFile(wb,`labels-${stamp()}.xlsx`);
- setExp(`Excel saved: ${items.length} item(s). You can import this file again in section 1 (Copies is detected automatically).`,'ok');
-}
+      <!-- 3. LABEL & PRINT SETTINGS -->
+      <section class="panel" id="secSettings">
+        <h2><span class="step">3</span>Label &amp; print settings</h2>
+        <div class="sub">Applies to both bulk and manual labels.</div>
 
-/* ================= WORD (.docx) ================= */
-const TW=mm=>Math.round(mm*56.6929),PX=mm=>Math.max(1,Math.round(mm*3.7795));
-const mctx=document.createElement('canvas').getContext('2d');
-function tw(t,pt,bold){mctx.font=`${bold?'bold ':''}${pt}pt Arial`;return mctx.measureText(t).width/3.7795}
-function fitW(t,pt,bold,max){t=String(t??'');if(tw(t,pt,bold)<=max)return t;while(t.length>1&&tw(t+'...',pt,bold)>max)t=t.slice(0,-1);return t+'...'}
-function wordLabel(D,r,s,m){
- const iw=s.w-2*m.pad,out=[],top=[];let used=0,qr=null;
- if(r.serialNumber)try{qr=qrPng(r.serialNumber)}catch(e){}
- const qs=qr?m.qr:0,txw=qr?iw-qs-1.5:iw; // text width beside the QR code
- const sp=(line,before=0,after=0)=>({line:TW(line),lineRule:D.LineRuleType.EXACT,before:TW(before),after:TW(after)});
- const run=(text,pt,o={})=>new D.TextRun({text,font:'Arial',size:Math.round(pt*2),...o});
- if(!m.compact){const lh=m.brand*MM*1.25;top.push(new D.Paragraph({spacing:sp(lh,0,.8),children:[run('PART NAME',m.brand,{bold:true,color:'71668D'})]}));used+=lh+.8}
- { const lh=m.name*MM*1.25,txt=String(r.partName||'—'),maxLines=m.compact?1:2;
-  const t=maxLines===1?fitW(txt,m.name,true,txw):fitW(txt,m.name,true,txw*1.8);
-  const n=Math.min(maxLines,tw(t,m.name,true)>txw*.98?2:1);
-  top.push(new D.Paragraph({spacing:sp(lh,0,1),children:[run(t,m.name,{bold:true})]}));used+=n*lh+1;
- }
- { const lh=m.row*MM*1.4,keyW=Math.max(tw('Part number:',m.row),tw('Category:',m.row))+1.5;
-  [['Part number:',r.partNumber],['Category:',r.category]].forEach(([k,v])=>{
-   top.push(new D.Paragraph({spacing:sp(lh),tabStops:[{type:D.TabStopType.LEFT,position:TW(keyW)}],
-    children:[run(k,m.row,{color:'555555'}),new D.TextRun({children:[new D.Tab(),fitW(v||'—',m.row,true,txw-keyW)],font:'Arial',size:Math.round(m.row*2),bold:true})]}));used+=lh});
-  if(qr){ // text on the left, QR code in the top-right corner
-   const none={style:D.BorderStyle.NONE,size:0,color:'FFFFFF'},nb={top:none,bottom:none,left:none,right:none},z={top:0,bottom:0,left:0,right:0};
-   out.push(new D.Table({width:{size:TW(iw),type:D.WidthType.DXA},columnWidths:[TW(iw-qs),TW(qs)],layout:D.TableLayoutType.FIXED,
-    borders:{...nb,insideHorizontal:none,insideVertical:none},rows:[new D.TableRow({height:{value:TW(qs),rule:D.HeightRule.ATLEAST},children:[
-     new D.TableCell({width:{size:TW(iw-qs),type:D.WidthType.DXA},borders:nb,margins:z,children:top}),
-     new D.TableCell({width:{size:TW(qs),type:D.WidthType.DXA},borders:nb,margins:z,children:[new D.Paragraph({spacing:{before:0,after:0},children:[new D.ImageRun({data:qr,transformation:{width:PX(qs),height:PX(qs)}})]})]})]})]}));
-   used=Math.max(used,qs);
-  }else out.push(...top);
-  const sl=m.name*MM*1.25;out.push(new D.Paragraph({spacing:sp(sl,1,0),border:{top:{style:D.BorderStyle.SINGLE,size:4,color:'BBBBBB',space:1}},
-   children:[run(fitW('Serial number: '+(r.serialNumber||'—'),m.name,true,iw),m.name,{bold:true})]}));used+=sl+1+.7;
- }
- const bh=Math.max(3,s.h-2*m.pad-used-1.4);
- if(r.serialNumber){
-  try{out.push(new D.Paragraph({spacing:{before:TW(.6),after:0},children:[new D.ImageRun({data:barPng(r.serialNumber),transformation:{width:PX(iw),height:PX(bh)}})]}));return out}catch(e){}
- }
- out.push(new D.Paragraph({spacing:sp(m.row*MM*1.4,.6),children:[run(r.serialNumber?'Barcode unavailable for this value':'No serial number, barcode skipped',6,{color:'777777'})]}));
- return out;
-}
-async function exportDOCX(){
- const s=applySettings(),{all}=expand();if(!all.length)return;
- await loadLib('docx');const D=window.docx,m=metrics(s),roll=s.mode==='roll';
- const none={style:D.BorderStyle.NONE,size:0,color:'FFFFFF'},line={style:D.BorderStyle.SINGLE,size:4,color:'8D86A0'};
- const noB={top:none,bottom:none,left:none,right:none},lineB={top:line,bottom:line,left:line,right:line};
- const padM={top:TW(m.pad),bottom:TW(m.pad),left:TW(m.pad),right:TW(m.pad)};
- const tiny=()=>new D.Paragraph({spacing:{line:20,lineRule:D.LineRuleType.EXACT,before:0,after:0},children:[new D.TextRun({text:'',size:2})]});
- let sections;
- if(roll){
-  const pw=Math.min(s.w,s.h),ph=Math.max(s.w,s.h);
-  sections=all.map(r=>({properties:{page:{size:{width:TW(s.h<s.w?s.h:s.w),height:TW(s.h<s.w?s.w:s.h),orientation:s.w>s.h?D.PageOrientation.LANDSCAPE:D.PageOrientation.PORTRAIT},
-   margin:{top:TW(m.pad),bottom:TW(m.pad),left:TW(m.pad),right:TW(m.pad),header:0,footer:0}}},children:wordLabel(D,r,s,m)}));
- }else{
-  const f=pageFit(s);if(!f)throw new Error(tooBig);
-  const rowsPP=Math.max(1,Math.floor((f.uh-1.5+s.gap)/(s.h+s.gap))),per=f.cols*rowsPP;
-  const widths=[];for(let c=0;c<f.cols;c++){if(c&&s.gap>0)widths.push(TW(s.gap));widths.push(TW(s.w))}
-  const children=[];
-  for(let p=0;p<all.length;p+=per){
-   const chunk=all.slice(p,p+per),rows=[];
-   for(let rr=0;rr*f.cols<chunk.length;rr++){
-    if(rr&&s.gap>0)rows.push(new D.TableRow({height:{value:TW(s.gap),rule:D.HeightRule.EXACT},cantSplit:true,children:widths.map(w=>new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders:noB,margins:{top:0,bottom:0,left:0,right:0},children:[tiny()]}))}));
-    const cells=[];
-    for(let c=0;c<f.cols;c++){
-     if(c&&s.gap>0)cells.push(new D.TableCell({width:{size:TW(s.gap),type:D.WidthType.DXA},borders:noB,children:[tiny()]}));
-     const r=chunk[rr*f.cols+c];
-     cells.push(new D.TableCell({width:{size:TW(s.w),type:D.WidthType.DXA},margins:padM,borders:r&&$('border').checked?lineB:noB,children:r?wordLabel(D,r,s,m):[tiny()]}));
-    }
-    rows.push(new D.TableRow({height:{value:TW(s.h),rule:D.HeightRule.EXACT},cantSplit:true,children:cells}));
-   }
-   if(p)children.push(new D.Paragraph({pageBreakBefore:true,spacing:{line:20,lineRule:D.LineRuleType.EXACT,before:0,after:0},children:[new D.TextRun({text:'',size:2})]}));
-   children.push(new D.Table({width:{size:widths.reduce((a,b)=>a+b,0),type:D.WidthType.DXA},columnWidths:widths,layout:D.TableLayoutType.FIXED,borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows}));
-  }
-  children.push(tiny());
-  sections=[{properties:{page:{size:{width:TW(210),height:TW(297),orientation:s.orient==='landscape'?D.PageOrientation.LANDSCAPE:D.PageOrientation.PORTRAIT},
-   margin:{top:TW(s.margin),bottom:TW(s.margin),left:TW(s.margin),right:TW(s.margin),header:0,footer:0}}},children}];
- }
- const doc=new D.Document({creator:'Part Controller',title:'Labels',sections});
- saveBlob(await D.Packer.toBlob(doc),`labels-${stamp()}.docx`);
- setExp(`Word file saved: ${all.length} label(s). `+(roll&&s.orient==='portrait'?noteRot:''),'ok');
-}
+        <div class="field" style="margin-top:0">
+          <label for="size">Label size</label>
+          <select id="size">
+            <option value="50x25">50 × 25 mm — Small parts</option>
+            <option value="50x30">50 × 30 mm — Compact labels</option>
+            <option value="63x38" selected>63 × 38 mm — Standard labels</option>
+            <option value="70x40">70 × 40 mm — General spare parts</option>
+            <option value="100x50">100 × 50 mm — Large inventory labels</option>
+            <option value="custom">Custom size…</option>
+          </select>
+        </div>
 
-[['savePdf',exportPDF],['saveXlsx',async()=>exportXLSX()],['saveDocx',exportDOCX]].forEach(([id,fn])=>$(id).addEventListener('click',async()=>{
- const b=$(id);b.disabled=true;setExp('Preparing file…');
- try{await fn()}catch(e){setExp(e.message||'Could not create the file.','error')}finally{b.disabled=!expand().all.length}
-}));
+        <div class="two" id="customSize" style="display:none">
+          <div class="field"><label for="cw">Width (mm)</label><input id="cw" type="number" min="20" max="200" value="60"></div>
+          <div class="field"><label for="ch">Height (mm)</label><input id="ch" type="number" min="15" max="200" value="40"></div>
+        </div>
 
-$('print').addEventListener('click',()=>window.print());
-$('clear').addEventListener('click',()=>{bulkItems=[];manualItems=[];bulkActive=false;renderManualList();$('manualStatus').textContent='';setBulkStatus('Preview cleared. Re-import to add the file again.');render()});
-render();
-</script>
+        <div class="two">
+          <div class="field">
+            <label for="orient">Page layout</label>
+            <select id="orient">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="mode">Printer mode</label>
+            <select id="mode">
+              <option value="a4">A4 sticker sheet</option>
+              <option value="roll">Continuous label roll</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="two" id="a4opts">
+          <div class="field"><label for="margin">Page margin (mm)</label><input id="margin" type="number" min="0" max="30" step="0.5" value="7"></div>
+          <div class="field"><label for="gap">Gap between labels (mm)</label><input id="gap" type="number" min="0" max="20" step="0.5" value="1.5"></div>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="border" checked> Print a thin border around each label
+        </label>
+
+        <div class="notice" id="printerNotice"></div>
+      </section>
+    </div>
+
+    <!-- ===================== PREVIEW (shared by bulk + manual) ===================== -->
+    <section class="panel preview">
+      <div class="previewhead">
+        <h2>Label preview</h2>
+        <div class="actions no-print">
+          <button id="clear" class="secondary" disabled>Clear all</button>
+          <button id="print" class="printbtn" disabled>Print labels ↗</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">Items<b id="itemCount">0</b></div>
+        <div class="stat">Labels to print<b id="labelCount">0</b></div>
+        <div class="stat">Label size<b id="sizeStat" style="font-size:15px;padding-top:3px">63 × 38 mm</b></div>
+        <div class="stat">Pages (A4)<b id="pageStat">–</b></div>
+      </div>
+
+      <div class="exportbar no-print">
+        <span class="lbl">Save as</span>
+        <button id="savePdf"  class="secondary" disabled>PDF</button>
+        <button id="saveXlsx" class="secondary" disabled>Excel</button>
+        <button id="saveDocx" class="secondary" disabled>Word</button>
+      </div>
+      <div id="exportStatus" class="status exportnote no-print"></div>
+
+      <div id="preview"></div>
+
+      <div class="footerhint">Copyright &#169; EPS Part Controller.</div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
