@@ -10,9 +10,8 @@
      6.  Settings (label size, page, fonts)
      7.  QR code & barcode generators
      8.  Preview rendering
-     9.  Export helpers (shared by PDF / Excel / Word)
+     9.  Export helpers (shared by PDF / Word)
      10. Export: PDF
-     11. Export: Excel
      12. Export: Word (.docx)
      13. Event wiring & first render
    ========================================================== */
@@ -546,10 +545,7 @@ function render() {
   $('itemCount').textContent = items.length;
   $('labelCount').textContent = all.length;
   $('print').disabled = $('clear').disabled = !all.length;
- ['savePdf', 'saveDocx'].forEach(id => {
-  const button = $(id);
-  if (button) button.disabled = !all.length;
-});
+  ['savePdf', 'saveDocx'].forEach(id => $(id).disabled = !all.length);
 
   const preview = $('preview');
   preview.className = (s.compact ? 'compact ' : '') + ($('border').checked ? 'bordered' : '');
@@ -587,7 +583,7 @@ function render() {
 
 
 /* ==========================================================
-   9. EXPORT HELPERS (shared by PDF / Excel / Word)
+   9. EXPORT HELPERS (shared by PDF / Word)
    ========================================================== */
 const MM = 0.352778;   // 1 pt in mm
 
@@ -873,15 +869,7 @@ async function exportPDF() {
   );
 }
 
-  const ws = XLSX.utils.json_to_sheet(rows, { header: columns });
-  ws['!cols'] = [{ wch: 32 }, { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 8 }];
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Labels');
-  XLSX.writeFile(wb, `labels-${stamp()}.xlsx`);
-
-  setExp(`Excel saved: ${items.length} item(s). You can import this file again in section 1 (Copies is detected automatically).`, 'ok');
-}
 
 
 /* ==========================================================
@@ -1206,7 +1194,7 @@ async function exportDOCX() {
   $(id).addEventListener('input', render)
 );
 
-// Save buttons (PDF / Excel / Word): disable while working, show errors in the status line
+// Save buttons (PDF / Word): disable while working, show errors in the status line
 [
   ['savePdf',  exportPDF],
   ['saveDocx', exportDOCX]
