@@ -874,18 +874,7 @@ async function exportPDF() {
 /* ==========================================================
    11. EXPORT: EXCEL (data list, can be re-imported in section 1)
    ========================================================== */
-function exportXLSX() {
-  const { items } = expand();
-  if (!items.length) return;
 
-  const columns = ['Part Name', 'Part Number', 'Category', 'Serial Number', 'Copies'];
-  const rows = items.map(r => ({
-    'Part Name':     r.partName,
-    'Part Number':   r.partNumber,
-    'Category':      r.category,
-    'Serial Number': r.serialNumber,
-    'Copies':        r.copies
-  }));
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: columns });
   ws['!cols'] = [{ wch: 32 }, { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 8 }];
@@ -1223,7 +1212,6 @@ async function exportDOCX() {
 // Save buttons (PDF / Excel / Word): disable while working, show errors in the status line
 [
   ['savePdf',  exportPDF],
-  ['saveXlsx', async () => exportXLSX()],
   ['saveDocx', exportDOCX]
 ].forEach(([id, fn]) =>
   $(id).addEventListener('click', async () => {
