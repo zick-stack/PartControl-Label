@@ -546,7 +546,10 @@ function render() {
   $('itemCount').textContent = items.length;
   $('labelCount').textContent = all.length;
   $('print').disabled = $('clear').disabled = !all.length;
-  ['savePdf', 'saveXlsx', 'saveDocx'].forEach(id => $(id).disabled = !all.length);
+ ['savePdf', 'saveDocx'].forEach(id => {
+  const button = $(id);
+  if (button) button.disabled = !all.length;
+});
 
   const preview = $('preview');
   preview.className = (s.compact ? 'compact ' : '') + ($('border').checked ? 'bordered' : '');
@@ -869,12 +872,6 @@ async function exportPDF() {
     'ok'
   );
 }
-
-
-/* ==========================================================
-   11. EXPORT: EXCEL (data list, can be re-imported in section 1)
-   ========================================================== */
-
 
   const ws = XLSX.utils.json_to_sheet(rows, { header: columns });
   ws['!cols'] = [{ wch: 32 }, { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 8 }];
