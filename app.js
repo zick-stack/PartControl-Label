@@ -379,9 +379,6 @@ function applySettings() {
     ? 'Sets the A4 page orientation'
     : 'Landscape = label printed as designed; Portrait = label turned 90°';
 
-  $('printerNotice').textContent = mode === 'a4'
-    ? 'A regular A4 printer needs compatible A4 sticker sheets. Page layout sets the A4 orientation; the label size is set separately above.'
-    : 'Roll mode prints one label per page at the exact label size. This needs a printer that supports roll media; a regular A4 printer cannot feed a label roll. Portrait turns each label 90° on the page.';
 
   $('sizeStat').textContent = `${w} × ${h} mm`;
 
